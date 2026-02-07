@@ -1,0 +1,38 @@
+import express from "express";
+import {
+  loginUser,
+  registerUser,
+  refreshAccessToken,
+  profile
+} from "../controllers/authController.js";
+import multer from "multer";
+import { validateRequest } from "../middlewares/validate.js";
+import { userValidationRules } from "../validationRules.js";
+
+const authRouter = express.Router();
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+authRouter.post(
+  "/register",
+  upload.single("profilePicture"),
+  userValidationRules.registerUser,
+  validateRequest,
+  registerUser
+);
+authRouter.post(
+  "/login",
+  userValidationRules.loginUser,
+  validateRequest,
+  loginUser
+);
+authRouter.post(
+  "/token",
+  userValidationRules.refreshAccessToken,
+  validateRequest,
+  refreshAccessToken
+);
+
+authRouter.get("/profile/:id", userValidationRules.profile, profile);
+
+export default authRouter;
