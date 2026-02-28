@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 
 import sequelize from "./database.js";
 import User from "./models/User.js";
+import Examination from "./models/Examination.js";
 
 import authRouter from "./routes/authRoutes.js";
 
