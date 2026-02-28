@@ -1,6 +1,8 @@
 import sequelize from "../database.js";
 import { DataTypes } from "sequelize";
 
+//GOOOOOG
+
 const StudentSubjectMarks = sequelize.define(
     "StudentSubjectMarks",
     {
