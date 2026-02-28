@@ -1,41 +1,37 @@
 import sequelize from "../database.js";
 import { DataTypes } from "sequelize";
 
-const ExaminationSubject = sequelize.define(
-  "ExaminationSubject",
+const StudentAnswerMarks = sequelize.define(
+  "StudentAnswerMarks",
   {
     id: {
       type: DataTypes.BIGINT,
       primaryKey: true,
       autoIncrement: true,
     },
-    subject_name_txt: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-    },
-    exam_fk_id: {
+    stud_user_fk_id: {
       type: DataTypes.BIGINT,
       allowNull: false,
     },
-    exam_setter_user_fk_id: {
+    stud_answer_fk_id: {
       type: DataTypes.BIGINT,
       allowNull: false,
     },
-    full_marks: {
+    marks_obtained: {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    pass_marks: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
+    feedback: {
+      type: DataTypes.TEXT("long"),
+      allowNull: true,
     },
   },
   {
-    tableName: "ExaminationSubject",
+    tableName: "StudentAnswerMarks",
     timestamps: true,
     createdAt: "createdAt_ts",
     updatedAt: "updatedAt_ts",
   }
 );
 
-export default ExaminationSubject;
+export default StudentAnswerMarks;

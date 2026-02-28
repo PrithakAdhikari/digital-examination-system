@@ -38,7 +38,7 @@ const User = sequelize.define(
       type: DataTypes.STRING(10),
       allowNull: true,
     },
-    stud_center_fk_id: {
+    center_fk_id: {
       type: DataTypes.BIGINT,
       allowNull: true,
     },
