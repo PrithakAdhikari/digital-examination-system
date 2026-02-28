@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import Quizz from '../models/Quizz.js';
 // import sequelize from '../database.js';
 // import { Sequelize } from 'sequelize';
 
@@ -36,4 +35,11 @@ const verifyLoggedIn = async (req, res, next) => {
   return res.status(401).json({ message: "No token provided" });
 };
 
-export {verifyLoggedIn};
+const verifyAdmin = (req, res, next) => {
+  if (!req.user || (req.user.role !== "SUPERADMIN" && req.user.role !== "ADMIN")) {
+    return res.status(403).json({ message: "Forbidden: Admins only" });
+  }
+  next();
+};
+
+export { verifyLoggedIn, verifyAdmin };

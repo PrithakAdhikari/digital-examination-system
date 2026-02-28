@@ -104,6 +104,8 @@ export const registerUser = async (req, res) => {
       uploadResult = await streamUpload(file.buffer);
     }
 
+    console.log("uploadResult", uploadResult);
+
     const userExists = await User.findOne({
       where: {
         [Sequelize.Op.or]: [{ username }, { email_txt: email }],

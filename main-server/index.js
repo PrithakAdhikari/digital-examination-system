@@ -7,17 +7,9 @@ import dotenv from "dotenv";
 
 import sequelize from "./database.js";
 import User from "./models/User.js";
-import Examination from "./models/Examination.js";
-import ExaminationSubject from "./models/ExaminationSubject.js";
-import StudentSubjectMarks from "./models/StudentSubjectMarks.js";
-import SubjectPaper from "./models/SubjectPaper.js";
-import PaperQuestion from "./models/PaperQuestion.js";
-import ExaminationCenter from "./models/ExaminationCenter.js";
-import StudentAnswerMarks from "./models/StudentAnswerMarks.js";
-import StudentQuestionAnswer from "./models/StudentQuestionAnswer.js";
-import ExamAnswerToken from "./models/ExamAnswerToken.js";
 
 import authRouter from "./routes/authRoutes.js";
+import adminRouter from "./routes/adminRoutes.js";
 
 import http from "http";
 
@@ -60,6 +52,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/auth", authRouter);
+app.use("/admin", adminRouter);
 
 // Protected route example
 app.get(
