@@ -54,6 +54,14 @@ const User = sequelize.define(
       type: DataTypes.STRING(100),
       allowNull: true,
     },
+    profilePicture: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    profilePicturePublicId: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
   },
   {
     tableName: "User", 

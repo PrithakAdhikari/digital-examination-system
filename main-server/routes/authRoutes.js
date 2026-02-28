@@ -16,8 +16,7 @@ const upload = multer({ storage });
 authRouter.post(
   "/register",
   upload.single("profilePicture"),
-  userValidationRules.registerUser,
-  validateRequest,
+  // userValidationRules.registerUser,
   registerUser
 );
 authRouter.post(

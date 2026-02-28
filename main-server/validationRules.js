@@ -6,8 +6,15 @@ export const userValidationRules = {
     body("password")
       .isLength({ min: 6 })
       .withMessage("Password must be at least 6 characters long."),
-    body("firstName").notEmpty().withMessage("First name is required."),
-    body("lastName").notEmpty().withMessage("Last name is required."),
+    body("firstname_txt").notEmpty().withMessage("First name is required."),
+    body("lastname_txt").notEmpty().withMessage("Last name is required."),
+    body("role").isIn(["ADMIN", "TEACHER", "STUDENT"]).withMessage("Role is required."),  
+    body("username").notEmpty().withMessage("Username is required."),
+    body("phone_num_txt").notEmpty().withMessage("Phone number is required."),
+    body("stud_center_fk_id").if(body("role").equals("STUDENT")).notEmpty().withMessage("Student center is required."),
+    body("stud_batch_year").if(body("role").equals("STUDENT")).notEmpty().withMessage("Student batch year is required."),
+    body("stud_exam_symbol_no").if(body("role").equals("STUDENT")).notEmpty().withMessage("Student exam symbol no is required."),
+    body("stud_exam_reg_no").if(body("role").equals("STUDENT")).notEmpty().withMessage("Student exam reg no is required."),
   ],
   loginUser: [
     body("email").isEmail().withMessage("A valid email is required."),

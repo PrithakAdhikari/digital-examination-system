@@ -23,12 +23,12 @@ const generateRefreshToken = (user) => {
 passport.use(
   new LocalStrategy(
     {
-      usernameField: "email", // Specify that the "username" is actually the "email"
+      usernameField: "email", // Keeping request field name as "email"
       passwordField: "password",
     },
     async (email, password, done) => {
       try {
-        const user = await User.findOne({ where: { email } });
+        const user = await User.findOne({ where: { email_txt: email } });
         if (!user) {
           return done(null, false, { message: "User not found." });
         }
@@ -61,7 +61,19 @@ passport.deserializeUser(async (id, done) => {
 
 // Controller functions
 export const registerUser = async (req, res) => {
-  const { username, email, password, firstName, lastName } = req.body;
+  const {
+    username,
+    email,
+    password,
+    firstName,
+    lastName,
+    role,
+    phone_num_txt,
+    stud_center_fk_id,
+    stud_batch_year,
+    stud_exam_symbol_no,
+    stud_exam_reg_no,
+  } = req.body;
   const file = req.file;
 
   let uploadResult = { secure_url: null, public_id: null };
@@ -92,23 +104,34 @@ export const registerUser = async (req, res) => {
       uploadResult = await streamUpload(file.buffer);
     }
 
-    const userExists = await User.findOne({ where: { email } });
+    const userExists = await User.findOne({
+      where: {
+        [Sequelize.Op.or]: [{ username }, { email_txt: email }],
+      },
+    });
 
     if (userExists) {
       return res
         .status(400)
-        .json({ message: "User has already been registered." });
+        .json({ message: "Username or email already exists." });
     }
 
     const newUser = await User.create({
-      firstName,
-      lastName,
+      firstname_txt: firstName,
+      lastname_txt: lastName,
+      role,
       username,
-      email,
+      email_txt: email,
       password: hashedPassword,
+      phone_num_txt,
+      stud_center_fk_id,
+      stud_batch_year,
+      stud_exam_symbol_no,
+      stud_exam_reg_no,
       profilePicture: uploadResult.secure_url,
       profilePicturePublicId: uploadResult.public_id,
     });
+
     res
       .status(201)
       .json({ message: `User ${newUser.username} registered successfully.` });
@@ -121,7 +144,7 @@ export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email_txt: email } });
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password." });
     }
@@ -135,7 +158,7 @@ export const loginUser = async (req, res) => {
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    Token.create({ refreshToken });
+    await Token.create({ refreshToken });
 
     res.status(200).json({
       message: "Login successful",
@@ -144,7 +167,10 @@ export const loginUser = async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email,
+        email: user.email_txt,
+        firstName: user.firstname_txt,
+        lastName: user.lastname_txt,
+        role: user.role,
         profilePicture: user.profilePicture,
         profilePicturePublicId: user.profilePicturePublicId,
       },
@@ -160,8 +186,8 @@ export const profile = async (req, res) => {
   try {
     const [user] = await sequelize.query(
       `
-      SELECT id, username, email, "firstName", "lastName", "profilePicture", "profilePicturePublicId"
-	    FROM public.users WHERE id = :userId;
+      SELECT id, username, email_txt, firstname_txt, lastname_txt, role, phone_num_txt, stud_center_fk_id, stud_batch_year, stud_exam_symbol_no, stud_exam_reg_no, "profilePicture", "profilePicturePublicId"
+	    FROM public."User" WHERE id = :userId;
       `,
       {
         type: Sequelize.QueryTypes.SELECT,

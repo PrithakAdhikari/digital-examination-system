@@ -8,6 +8,8 @@ import dotenv from "dotenv";
 import sequelize from "./database.js";
 import User from "./models/User.js";
 import Examination from "./models/Examination.js";
+import ExaminationSubject from "./models/ExaminationSubject.js";
+import StudentSubjectMarks from "./models/StudentSubjectMarks.js";
 
 import authRouter from "./routes/authRoutes.js";
 
@@ -82,7 +84,7 @@ const runApp = async () => {
   try {
     await sequelize.authenticate();
     console.log("Database connected successfully.");
-    await sequelize.sync({ alter: true });
+    // await sequelize.sync({ alter: true });
 
     server.listen(PORT, "0.0.0.0", () => {
       console.log(`Server is running on http://localhost:${PORT}`);
