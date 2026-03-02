@@ -1,0 +1,670 @@
+import Joi from "joi";
+import crypto from "crypto";
+import Examination from "../models/Examination.js";
+import ExaminationSubject from "../models/ExaminationSubject.js";
+import ExaminationCenter from "../models/ExaminationCenter.js";
+import SubjectPaper from "../models/SubjectPaper.js";
+import PaperQuestion from "../models/PaperQuestion.js";
+import ExamAnswerToken from "../models/ExamAnswerToken.js";
+import sequelize from "../database.js";
+import { Sequelize } from "sequelize";
+
+// --- Helper Functions (from SubjectPaper) ---
+
+// Helper function for AES-256 encryption
+const encrypt = (text, key) => {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(key), iv);
+    let encrypted = cipher.update(text, "utf8", "hex");
+    encrypted += cipher.final("hex");
+    return iv.toString("hex") + ":" + encrypted;
+};
+
+// Helper function for AES-256 decryption
+const decrypt = (encryptedText, key) => {
+    if (!encryptedText) return null;
+    try {
+        const [ivHex, encrypted] = encryptedText.split(":");
+        if (!ivHex || !encrypted) return encryptedText;
+        const iv = Buffer.from(ivHex, "hex");
+        const decipher = crypto.createDecipheriv("aes-256-cbc", Buffer.from(key), iv);
+        let decrypted = decipher.update(encrypted, "hex", "utf8");
+        decrypted += decipher.final("utf8");
+        return decrypted;
+    } catch (err) {
+        console.error("Decryption failed:", err.message);
+        return encryptedText; // Return original if decryption fails
+    }
+};
+
+// --- Validation Schemas ---
+
+const comprehensiveExamSchema = Joi.object({
+    exam_name_txt: Joi.string().max(255).required(),
+    exam_startTime_ts: Joi.date().required(),
+    result_time_ts: Joi.date().allow(null),
+    center_fk_list: Joi.array().items(Joi.number()).allow(null),
+    subjects: Joi.array().items(
+        Joi.object({
+            subject_name_txt: Joi.string().max(255).required(),
+            exam_setter_user_fk_id: Joi.number().required(),
+            full_marks: Joi.number().integer().required(),
+            pass_marks: Joi.number().integer().required(),
+        })
+    ).min(1).required(),
+});
+
+const examinationCenterSchema = Joi.object({
+    center_name_txt: Joi.string().max(255).required(),
+    whitelist_ip: Joi.string().max(255).allow(null, ""),
+    whitelist_url: Joi.string().max(255).allow(null, ""),
+});
+
+const subjectPaperSchema = Joi.object({
+    subject_fk_id: Joi.number().required(),
+    exam_batch_year: Joi.string().max(100).required(),
+    paper_checkers_list: Joi.array().items(Joi.number()).allow(null),
+    questions: Joi.array()
+        .items(
+            Joi.object({
+                question_txt: Joi.string().required(),
+                question_type: Joi.string().valid("LONG", "SHORT", "MCQ").required(),
+                option1: Joi.string().allow(null, "").optional(),
+                option2: Joi.string().allow(null, "").optional(),
+                option3: Joi.string().allow(null, "").optional(),
+                option4: Joi.string().allow(null, "").optional(),
+            })
+        )
+        .min(1)
+        .required(),
+});
+
+// --- Examination Controllers ---
+
+export const createComprehensiveExamination = async (req, res) => {
+    const { error, value } = comprehensiveExamSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
+    // 0. Validate that all centers exist (using a raw SQL query)
+    if (value.center_fk_list && value.center_fk_list.length > 0) {
+        try {
+            const [countResult] = await sequelize.query(
+                `SELECT COUNT(*) as count FROM public."ExaminationCenter" WHERE id IN (:ids)`,
+                {
+                    replacements: { ids: value.center_fk_list },
+                    type: Sequelize.QueryTypes.SELECT,
+                }
+            );
+
+            if (parseInt(countResult.count) !== value.center_fk_list.length) {
+                return res
+                    .status(400)
+                    .json({ error: "One or more examination centers do not exist." });
+            }
+        } catch (err) {
+            return res
+                .status(500)
+                .json({ error: "Error validating centers: " + err.message });
+        }
+    }
+
+    // 1. Validate that all exam setters exist and have allowed roles
+    const examSetterIds = [...new Set(value.subjects.map((s) => s.exam_setter_user_fk_id))];
+    try {
+        const validSetters = await sequelize.query(
+            `SELECT id FROM public."User" WHERE id IN (:ids) AND role != 'STUDENT'`,
+            {
+                replacements: { ids: examSetterIds },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        if (validSetters.length !== examSetterIds.length) {
+            return res
+                .status(400)
+                .json({ error: "One or more exam setter users do not exist or are students." });
+        }
+    } catch (err) {
+        return res
+            .status(500)
+            .json({ error: "Error validating exam setters: " + err.message });
+    }
+
+    const t = await sequelize.transaction();
+    try {
+        // 2. Create the Examination
+        const examination = await Examination.create({
+            exam_name_txt: value.exam_name_txt,
+            creator_user_fk_id: req.user.id,
+            exam_startTime_ts: value.exam_startTime_ts,
+            result_time_ts: value.result_time_ts,
+            center_fk_list: value.center_fk_list,
+        }, { transaction: t });
+
+        // 3. Create the Examination Subjects
+        const subjectsToCreate = value.subjects.map(s => ({
+            ...s,
+            exam_fk_id: examination.id
+        }));
+
+        await ExaminationSubject.bulkCreate(subjectsToCreate, { transaction: t });
+
+        await t.commit();
+
+        res.status(201).json({
+            message: "Examination and subjects created successfully",
+            data: {
+                examination,
+                subjectsCount: subjectsToCreate.length
+            }
+        });
+
+    } catch (err) {
+        await t.rollback();
+        res.status(500).json({ error: "Error creating comprehensive examination: " + err.message });
+    }
+};
+
+export const getExaminationById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [result] = await sequelize.query(
+            `
+      SELECT e.*, 
+             u.username AS creator_username,
+             u.firstname_txt AS creator_firstname,
+             u.lastname_txt AS creator_lastname,
+             COALESCE(
+               (SELECT json_agg(
+                 json_build_object(
+                   'id', s.id,
+                   'subject_name_txt', s.subject_name_txt,
+                   'full_marks', s.full_marks,
+                   'pass_marks', s.pass_marks,
+                   'exam_setter_user_fk_id', s.exam_setter_user_fk_id,
+                   'setter_username', us.username,
+                   'setter_firstname', us.firstname_txt,
+                   'setter_lastname', us.lastname_txt
+                 )
+               )
+               FROM public."ExaminationSubject" s
+               LEFT JOIN public."User" us ON s.exam_setter_user_fk_id = us.id
+               WHERE s.exam_fk_id = e.id),
+               '[]'
+             ) AS subjects,
+             COALESCE(
+               (SELECT json_agg(c.*)
+                FROM public."ExaminationCenter" c
+                WHERE c.id::text IN (
+                  SELECT jsonb_array_elements_text(e.center_fk_list)
+                )
+               ),
+               '[]'
+             ) AS centers
+      FROM public.examinations e
+      LEFT JOIN public."User" u ON e.creator_user_fk_id = u.id
+      WHERE e.id = :id;
+      `,
+            {
+                replacements: { id },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        if (!result) {
+            return res.status(404).json({ error: "Examination not found" });
+        }
+
+        const { subjects, centers, ...examinationData } = result;
+
+        res.status(200).json({
+            message: "Examination fetched successfully",
+            data: {
+                examination: examinationData,
+                subjects: subjects,
+                centers: centers,
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching examination: " + err.message });
+    }
+};
+
+export const getAllExaminations = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        const examinations = await sequelize.query(
+            `SELECT * FROM public.examinations ORDER BY "createdAt_ts" DESC LIMIT :limit OFFSET :offset`,
+            {
+                replacements: { limit, offset },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        const [totalResult] = await sequelize.query(
+            `SELECT COUNT(*) as count FROM public.examinations`,
+            { type: Sequelize.QueryTypes.SELECT }
+        );
+
+        const total = parseInt(totalResult.count);
+
+        res.status(200).json({
+            message: "Examinations fetched successfully",
+            data: examinations,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching examinations: " + err.message });
+    }
+};
+
+// --- Examination Center Controllers ---
+
+export const createCenter = async (req, res) => {
+    const { error, value } = examinationCenterSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
+    try {
+        const center = await ExaminationCenter.create(value);
+        res.status(201).json({
+            message: "Examination center created successfully",
+            data: center,
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error creating center: " + err.message });
+    }
+};
+
+export const getAllCenters = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        const centers = await sequelize.query(
+            `SELECT * FROM public."ExaminationCenter" ORDER BY "createdAt_ts" DESC LIMIT :limit OFFSET :offset`,
+            {
+                replacements: { limit, offset },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        const [totalResult] = await sequelize.query(
+            `SELECT COUNT(*) as count FROM public."ExaminationCenter"`,
+            { type: Sequelize.QueryTypes.SELECT }
+        );
+
+        const total = parseInt(totalResult.count);
+
+        res.status(200).json({
+            message: "Centers fetched successfully",
+            data: centers,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching centers: " + err.message });
+    }
+};
+
+export const getCenterById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [center] = await sequelize.query(
+            `SELECT * FROM public."ExaminationCenter" WHERE id = :id`,
+            {
+                replacements: { id },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        if (!center) {
+            return res.status(404).json({ error: "Examination center not found" });
+        }
+        res.status(200).json({
+            message: "Center found successfully",
+            data: center,
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching center: " + err.message });
+    }
+};
+
+export const updateCenter = async (req, res) => {
+    const { id } = req.params;
+    const { error, value } = examinationCenterSchema.validate(req.body);
+
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
+    try {
+        const center = await ExaminationCenter.findByPk(id);
+        if (!center) {
+            return res.status(404).json({ error: "Examination center not found" });
+        }
+
+        await center.update(value);
+        res.status(200).json({
+            message: "Center updated successfully",
+            data: center,
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error updating center: " + err.message });
+    }
+};
+
+export const patchCenter = async (req, res) => {
+    const { id } = req.params;
+    const patchSchema = Joi.object({
+        center_name_txt: Joi.string().max(255).optional(),
+        whitelist_ip: Joi.string().max(255).allow(null, "").optional(),
+        whitelist_url: Joi.string().max(255).allow(null, "").optional(),
+    });
+
+    const { error, value } = patchSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
+    try {
+        const center = await ExaminationCenter.findByPk(id);
+        if (!center) {
+            return res.status(404).json({ error: "Examination center not found" });
+        }
+
+        await center.update(value);
+        res.status(200).json({
+            message: "Center updated successfully",
+            data: center,
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error patching center: " + err.message });
+    }
+};
+
+export const deleteCenter = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const center = await ExaminationCenter.findByPk(id);
+        if (!center) {
+            return res.status(404).json({ error: "Examination center not found" });
+        }
+
+        await center.destroy();
+        res.status(200).json({
+            message: "Center deleted successfully",
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error deleting center: " + err.message });
+    }
+};
+
+// --- Subject Paper Controllers ---
+
+export const createSubjectPaper = async (req, res) => {
+    const { error, value } = subjectPaperSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
+    // Verify that the user is the assigned setter for this subject
+    try {
+        const [subject] = await sequelize.query(
+            `SELECT exam_setter_user_fk_id FROM public."ExaminationSubject" WHERE id = :id`,
+            {
+                replacements: { id: value.subject_fk_id },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        if (!subject) {
+            return res.status(404).json({ error: "Examination subject not found." });
+        }
+
+        if (parseInt(subject.exam_setter_user_fk_id) !== parseInt(req.user.id)) {
+            return res.status(403).json({ error: "Forbidden: You are not the assigned setter for this subject." });
+        }
+    } catch (err) {
+        return res.status(500).json({ error: "Error verifying subject setter: " + err.message });
+    }
+
+    const t = await sequelize.transaction();
+
+    try {
+        // 1. Generate a random AES-256 key for this paper
+        const paperKey = crypto.randomBytes(32);
+
+        // 2. Encrypt the paper key using the Master Key from .env
+        const masterKeyHex = process.env.AES_MASTER_KEY;
+        if (!masterKeyHex) {
+            throw new Error("AES_MASTER_KEY not found in .env");
+        }
+        const encryptedPaperKey = encrypt(
+            paperKey.toString("hex"),
+            Buffer.from(masterKeyHex, "hex")
+        );
+
+        // 3. Create the SubjectPaper
+        const paper = await SubjectPaper.create(
+            {
+                subject_fk_id: value.subject_fk_id,
+                exam_batch_year: value.exam_batch_year,
+                paper_checkers_list: value.paper_checkers_list,
+            },
+            { transaction: t }
+        );
+
+        // 4. Encrypt and create questions
+        for (const q of value.questions) {
+            const encryptedData = {
+                paper_fk_id: paper.id,
+                question_type: q.question_type,
+                question_txt: encrypt(q.question_txt, paperKey),
+                option1: q.option1 ? encrypt(q.option1, paperKey) : null,
+                option2: q.option2 ? encrypt(q.option2, paperKey) : null,
+                option3: q.option3 ? encrypt(q.option3, paperKey) : null,
+                option4: q.option4 ? encrypt(q.option4, paperKey) : null,
+            };
+
+            const question = await PaperQuestion.create(encryptedData, { transaction: t });
+
+            // 5. Store the encrypted paper key for this question
+            await ExamAnswerToken.create(
+                {
+                    question_fk_id: question.id,
+                    aes_256_key: encryptedPaperKey,
+                },
+                { transaction: t }
+            );
+        }
+
+        await t.commit();
+
+        res.status(201).json({
+            message: "Subject paper and questions created successfully with encryption.",
+            data: {
+                paperId: paper.id,
+                questionsCount: value.questions.length,
+            },
+        });
+    } catch (err) {
+        await t.rollback();
+        res.status(500).json({ error: "Error creating subject paper: " + err.message });
+    }
+};
+
+export const getAllSubjectPapers = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        const papers = await sequelize.query(
+            `SELECT * FROM public."SubjectPaper" ORDER BY "createdAt_ts" DESC LIMIT :limit OFFSET :offset`,
+            {
+                replacements: { limit, offset },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        const [totalResult] = await sequelize.query(
+            `SELECT COUNT(*) as count FROM public."SubjectPaper"`,
+            { type: Sequelize.QueryTypes.SELECT }
+        );
+
+        const total = parseInt(totalResult.count);
+
+        res.status(200).json({
+            message: "Subject papers fetched successfully",
+            data: papers,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching subject papers: " + err.message });
+    }
+};
+
+export const getSubjectPaperById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [result] = await sequelize.query(
+            `
+      SELECT sp.*,
+             e."exam_startTime_ts",
+             json_build_object(
+               'id', es.id,
+               'subject_name_txt', es.subject_name_txt,
+               'full_marks', es.full_marks,
+               'pass_marks', es.pass_marks
+             ) AS subject,
+             COALESCE(
+               (SELECT json_agg(
+                 json_build_object(
+                   'id', pq.id,
+                   'question_type', pq.question_type,
+                   'question_txt', pq.question_txt,
+                   'option1', CASE WHEN pq.question_type = 'MCQ' THEN pq.option1 ELSE NULL END,
+                   'option2', CASE WHEN pq.question_type = 'MCQ' THEN pq.option2 ELSE NULL END,
+                   'option3', CASE WHEN pq.question_type = 'MCQ' THEN pq.option3 ELSE NULL END,
+                   'option4', CASE WHEN pq.question_type = 'MCQ' THEN pq.option4 ELSE NULL END,
+                   'encrypted_key', eat.aes_256_key
+                 )
+               )
+               FROM public."PaperQuestion" pq
+               LEFT JOIN public."ExamAnswerToken" eat ON pq.id = eat.question_fk_id
+               WHERE pq.paper_fk_id = sp.id),
+               '[]'
+             ) AS questions
+      FROM public."SubjectPaper" sp
+      JOIN public."ExaminationSubject" es ON sp.subject_fk_id = es.id
+      JOIN public.examinations e ON es.exam_fk_id = e.id
+      WHERE sp.id = :id;
+      `,
+            {
+                replacements: { id },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        if (!result) {
+            return res.status(404).json({ error: "Subject paper not found" });
+        }
+
+        // Validation: Check if the examination has started
+        const startTime = new Date(result.exam_startTime_ts);
+        const now = new Date();
+
+        if (now < startTime) {
+            return res.status(403).json({
+                error: "Forbidden: Examination has not started yet. Questions cannot be accessed before the start time.",
+                startTime: result.exam_startTime_ts
+            });
+        }
+
+        const masterKeyHex = process.env.AES_MASTER_KEY;
+        if (!masterKeyHex) {
+            throw new Error("AES_MASTER_KEY not found in .env");
+        }
+        const masterKey = Buffer.from(masterKeyHex, "hex");
+
+        // Decrypt questions
+        const decryptedQuestions = result.questions.map((q) => {
+            // 1. Decrypt the paper key using master key
+            const paperKeyHex = decrypt(q.encrypted_key, masterKey);
+            const paperKey = Buffer.from(paperKeyHex, "hex");
+
+            // 2. Decrypt question data using the paper key
+            const baseQuestion = {
+                id: q.id,
+                question_type: q.question_type,
+                question_txt: decrypt(q.question_txt, paperKey),
+            };
+
+            if (q.question_type === "MCQ") {
+                return {
+                    ...baseQuestion,
+                    option1: decrypt(q.option1, paperKey),
+                    option2: decrypt(q.option2, paperKey),
+                    option3: decrypt(q.option3, paperKey),
+                    option4: decrypt(q.option4, paperKey),
+                };
+            }
+
+            return baseQuestion;
+        });
+
+        const { questions, subject, exam_startTime_ts, subject_fk_id, ...paperData } = result;
+
+        res.status(200).json({
+            message: "Subject paper fetched successfully and decrypted.",
+            data: {
+                paper: {
+                    ...paperData,
+                    subject,
+                },
+                questions: decryptedQuestions,
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching subject paper: " + err.message });
+    }
+};
+
+export const deleteSubjectPaper = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const paper = await SubjectPaper.findByPk(id);
+        if (!paper) {
+            return res.status(404).json({ error: "Subject paper not found" });
+        }
+
+        await paper.destroy();
+        res.status(200).json({
+            message: "Subject paper deleted successfully",
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error deleting subject paper: " + err.message });
+    }
+};
