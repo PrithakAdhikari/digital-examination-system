@@ -41,9 +41,8 @@ const app = express();
 
 app.use(cors());
 app.use(passport.initialize());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 const server = http.createServer(app);
 
 // Routes

@@ -12,6 +12,15 @@ import {
   createSubjectPaper,
   getAllSubjectPapers,
   getSubjectPaperById,
+  createUser,
+  bulkCreateUsers,
+  getAllUsers,
+  getUserById,
+  getUsersByRole,
+  updateUser,
+  deleteUser,
+  deactivateUser,
+  activateUser
 } from "../controllers/adminController.js";
 import { verifyLoggedIn, verifyAdmin } from "../middlewares/authMiddleware.js";
 
@@ -34,5 +43,18 @@ adminRouter.get("/examination/:id", verifyLoggedIn, verifyAdmin, getExaminationB
 adminRouter.post("/subject-paper", verifyLoggedIn, verifyAdmin, createSubjectPaper);
 adminRouter.get("/subject-paper", verifyLoggedIn, verifyAdmin, getAllSubjectPapers);
 adminRouter.get("/subject-paper/:id", verifyLoggedIn, verifyAdmin, getSubjectPaperById);
+
+// CRUD User routes
+adminRouter.post("/users", verifyLoggedIn, verifyAdmin, createUser);
+adminRouter.post("/users/bulk", verifyLoggedIn, verifyAdmin, bulkCreateUsers);
+adminRouter.get("/users", verifyLoggedIn, verifyAdmin, getAllUsers);
+adminRouter.get("/users/role/:role", verifyLoggedIn, verifyAdmin, getUsersByRole);
+adminRouter.get("/users/:id", verifyLoggedIn, verifyAdmin, getUserById);
+adminRouter.put("/users/:id", verifyLoggedIn, verifyAdmin, updateUser);
+adminRouter.delete("/users/:id", verifyLoggedIn, verifyAdmin, deleteUser);
+
+// Status Management (Soft Delete)
+adminRouter.patch("/users/:id/deactivate", verifyLoggedIn, verifyAdmin, deactivateUser);
+adminRouter.patch("/users/:id/activate", verifyLoggedIn, verifyAdmin, activateUser);
 
 export default adminRouter;
