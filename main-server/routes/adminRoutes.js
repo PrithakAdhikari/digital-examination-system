@@ -6,17 +6,13 @@ import {
   updateCenter,
   patchCenter,
   deleteCenter,
-} from "../controllers/examinationCenterController.js";
-import {
   createComprehensiveExamination,
   getAllExaminations,
-  getExaminationById
-} from "../controllers/examinationController.js";
-import {
+  getExaminationById,
   createSubjectPaper,
   getAllSubjectPapers,
   getSubjectPaperById,
-} from "../controllers/subjectPaperController.js";
+} from "../controllers/adminController.js";
 import { verifyLoggedIn, verifyAdmin } from "../middlewares/authMiddleware.js";
 
 const adminRouter = express.Router();
