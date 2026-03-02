@@ -42,4 +42,11 @@ const verifyAdmin = (req, res, next) => {
   next();
 };
 
-export { verifyLoggedIn, verifyAdmin };
+const verifyTeacher = (req, res, next) => {
+  if (!req.user || !["TEACHER", "ADMIN", "SUPERADMIN"].includes(req.user.role)) {
+    return res.status(403).json({ message: "Forbidden: Teacher or higher role only" });
+  }
+  next();
+};
+
+export { verifyLoggedIn, verifyAdmin, verifyTeacher };
