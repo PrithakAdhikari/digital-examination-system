@@ -16,7 +16,6 @@ import {
   bulkCreateUsers,
   getAllUsers,
   getUserById,
-  getUsersByRole,
   updateUser,
   deleteUser,
   deactivateUser,
@@ -48,7 +47,6 @@ adminRouter.get("/subject-paper/:id", verifyLoggedIn, verifyAdmin, getSubjectPap
 adminRouter.post("/users", verifyLoggedIn, verifyAdmin, createUser);
 adminRouter.post("/users/bulk", verifyLoggedIn, verifyAdmin, bulkCreateUsers);
 adminRouter.get("/users", verifyLoggedIn, verifyAdmin, getAllUsers);
-adminRouter.get("/users/role/:role", verifyLoggedIn, verifyAdmin, getUsersByRole);
 adminRouter.get("/users/:id", verifyLoggedIn, verifyAdmin, getUserById);
 adminRouter.put("/users/:id", verifyLoggedIn, verifyAdmin, updateUser);
 adminRouter.delete("/users/:id", verifyLoggedIn, verifyAdmin, deleteUser);

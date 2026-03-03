@@ -705,23 +705,74 @@ export const createUser = async (req, res) => {
 };
 
 export const bulkCreateUsers = async (req, res) => {
+    const usersData = req.body;
 
-    if (!req.body || !Array.isArray(req.body)) {
-        return res.status(400).json({ error: "Bulk create requires an array of users." });
+    if (!Array.isArray(usersData)) {
+        return res.status(400).json({ error: "Data must be an array of users." });
     }
 
-    try {
-        // 2. Use the model to bulk insert
-        const users = await User.bulkCreate(req.body);
+    const results = {
+        successCount: 0,
+        errorCount: 0,
+        createdUsers: [],
+        errors: [] // Stores which index failed and why
+    };
 
-        res.status(201).json({
-            message: "Bulk creation successful",
-            count: users ? users.length : 0, // Safe check
-            data: users
-        });
-    } catch (err) {
-        res.status(500).json({ error: "Database Error: " + err.message });
+    for (let i = 0; i < usersData.length; i++) {
+        const currentUser = usersData[i];
+
+        // 1. Individual Validation
+        const { error, value } = createUserSchema.validate(currentUser);
+
+        if (error) {
+            results.errorCount++;
+            results.errors.push({
+                index: i,
+                username: currentUser.username || "Unknown",
+                reason: error.details[0].message
+            });
+            continue; // Skip to next user
+        }
+
+        try {
+            // 2. Check for Duplicate Username manually (since bulkCreate bypasses some hooks)
+            const existing = await User.findOne({ where: { username: value.username } });
+            if (existing) {
+                results.errorCount++;
+                results.errors.push({
+                    index: i,
+                    username: value.username,
+                    reason: "Username already exists in database"
+                });
+                continue;
+            }
+
+            // 3. Create the valid user
+            const newUser = await User.create(value);
+            results.successCount++;
+            results.createdUsers.push(newUser);
+
+        } catch (dbErr) {
+            results.errorCount++;
+            results.errors.push({
+                index: i,
+                username: value.username,
+                reason: "Database error: " + dbErr.message
+            });
+        }
     }
+
+    // 4. Send back the partial success report
+    res.status(207).json({ // 207 = Multi-Status
+        message: "Bulk processing complete",
+        summary: {
+            totalProcessed: usersData.length,
+            success: results.successCount,
+            failed: results.errorCount
+        },
+        data: results.createdUsers,
+        failures: results.errors
+    });
 };
 
 export const getAllUsers = async (req, res) => {
@@ -746,28 +797,18 @@ export const getUserById = async (req, res) => {
         const user = await User.findByPk(req.params.id);
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        // Basic activity count example
-        const [stats] = await sequelize.query(
-            `SELECT COUNT(*) as activity_count FROM public.examinations WHERE creator_user_fk_id = :id`,
-            { replacements: { id: req.params.id }, type: Sequelize.QueryTypes.SELECT }
-        );
-
-        res.status(200).json({ data: user, stats });
+        res.status(200).json({ data: user });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
 
-export const getUsersByRole = async (req, res) => {
-    try {
-        const users = await User.findAll({ where: { role: req.params.role } });
-        res.status(200).json({ data: users });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-};
+
 
 export const updateUser = async (req, res) => {
+    const { error, value } = updateUserSchema.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
     try {
         const user = await User.findByPk(req.params.id);
         if (!user) return res.status(404).json({ error: "User not found" });
