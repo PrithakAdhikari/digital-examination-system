@@ -28,7 +28,7 @@ const User = sequelize.define(
     },
     password: {
       type: DataTypes.TEXT("long"),
-      allowNull: false,
+      allowNull: true,
     },
     email_txt: {
       type: DataTypes.STRING(255),
@@ -64,11 +64,12 @@ const User = sequelize.define(
     },
     is_active: {
       type: DataTypes.BOOLEAN,
+      defaultValue: true,
       allowNull: true
     }
   },
   {
-    tableName: "User", 
+    tableName: "User",
     timestamps: true,
     createdAt: "createdAt_ts",
     updatedAt: "updatedAt_ts",

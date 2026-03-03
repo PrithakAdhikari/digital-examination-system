@@ -8,6 +8,7 @@ import PaperQuestion from "../models/PaperQuestion.js";
 import ExamAnswerToken from "../models/ExamAnswerToken.js";
 import sequelize from "../database.js";
 import { Sequelize } from "sequelize";
+import User from "../models/User.js";
 
 // --- Helper Functions (from SubjectPaper) ---
 
@@ -78,6 +79,28 @@ const subjectPaperSchema = Joi.object({
         .min(1)
         .required(),
 });
+const createUserSchema = Joi.object({
+    firstname_txt: Joi.string().required(),
+    lastname_txt: Joi.string().required(),
+    role: Joi.string().valid("SUPERADMIN", "ADMIN", "TEACHER", "STUDENT").required(),
+    username: Joi.string().required(),
+    email_txt: Joi.string().email().allow(null, ""),
+    phone_num_txt: Joi.string().allow(null, ""),
+    center_fk_id: Joi.number().allow(null),
+    stud_batch_year: Joi.string().allow(null, ""),
+    stud_exam_symbol_no: Joi.string().allow(null, ""),
+    stud_exam_reg_no: Joi.string().allow(null, ""),
+    is_active: Joi.boolean().default(true)
+});
+
+const updateUserSchema = Joi.object({
+    firstname_txt: Joi.string(),
+    lastname_txt: Joi.string(),
+    email_txt: Joi.string().email().allow(null, ""),
+    phone_num_txt: Joi.string().allow(null, ""),
+    center_fk_id: Joi.number().allow(null),
+    is_active: Joi.boolean()
+}).unknown(true); // Allows extra fields like batch_year without error
 
 // --- Examination Controllers ---
 
@@ -666,5 +689,163 @@ export const deleteSubjectPaper = async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ error: "Error deleting subject paper: " + err.message });
+    }
+};
+
+export const createUser = async (req, res) => {
+    const { error, value } = createUserSchema.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    try {
+        const user = await User.create(value);
+        res.status(201).json({ message: "User created", data: user });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+export const bulkCreateUsers = async (req, res) => {
+    const usersData = req.body;
+
+    if (!Array.isArray(usersData)) {
+        return res.status(400).json({ error: "Data must be an array of users." });
+    }
+
+    const results = {
+        successCount: 0,
+        errorCount: 0,
+        createdUsers: [],
+        errors: [] // Stores which index failed and why
+    };
+
+    for (let i = 0; i < usersData.length; i++) {
+        const currentUser = usersData[i];
+
+        // 1. Individual Validation
+        const { error, value } = createUserSchema.validate(currentUser);
+
+        if (error) {
+            results.errorCount++;
+            results.errors.push({
+                index: i,
+                username: currentUser.username || "Unknown",
+                reason: error.details[0].message
+            });
+            continue; // Skip to next user
+        }
+
+        try {
+            // 2. Check for Duplicate Username manually (since bulkCreate bypasses some hooks)
+            const existing = await User.findOne({ where: { username: value.username } });
+            if (existing) {
+                results.errorCount++;
+                results.errors.push({
+                    index: i,
+                    username: value.username,
+                    reason: "Username already exists in database"
+                });
+                continue;
+            }
+
+            // 3. Create the valid user
+            const newUser = await User.create(value);
+            results.successCount++;
+            results.createdUsers.push(newUser);
+
+        } catch (dbErr) {
+            results.errorCount++;
+            results.errors.push({
+                index: i,
+                username: value.username,
+                reason: "Database error: " + dbErr.message
+            });
+        }
+    }
+
+    // 4. Send back the partial success report
+    res.status(207).json({ // 207 = Multi-Status
+        message: "Bulk processing complete",
+        summary: {
+            totalProcessed: usersData.length,
+            success: results.successCount,
+            failed: results.errorCount
+        },
+        data: results.createdUsers,
+        failures: results.errors
+    });
+};
+
+export const getAllUsers = async (req, res) => {
+    try {
+        const { role, center, active, search } = req.query;
+        let filter = {};
+
+        if (role) filter.role = role;
+        if (center) filter.center_fk_id = center;
+        if (active) filter.is_active = active === "true";
+        if (search) filter.username = { [Sequelize.Op.iLike]: `%${search}%` };
+
+        const users = await User.findAll({ where: filter, order: [['createdAt_ts', 'DESC']] });
+        res.status(200).json({ data: users });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+export const getUserById = async (req, res) => {
+    try {
+        const user = await User.findByPk(req.params.id);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        res.status(200).json({ data: user });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+
+
+export const updateUser = async (req, res) => {
+    const { error, value } = updateUserSchema.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    try {
+        const user = await User.findByPk(req.params.id);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        await user.update(req.body);
+        res.status(200).json({ message: "Updated successfully", data: user });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+export const deleteUser = async (req, res) => {
+    try {
+        const user = await User.findByPk(req.params.id);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        await user.destroy();
+        res.status(200).json({ message: "User permanently removed" });
+    } catch (err) {
+        res.status(500).json({ error: "Could not delete: User may have existing records." });
+    }
+};
+
+export const deactivateUser = async (req, res) => {
+    try {
+        await User.update({ is_active: false }, { where: { id: req.params.id } });
+        res.status(200).json({ message: "User deactivated" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+export const activateUser = async (req, res) => {
+    try {
+        await User.update({ is_active: true }, { where: { id: req.params.id } });
+        res.status(200).json({ message: "User activated" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 };
