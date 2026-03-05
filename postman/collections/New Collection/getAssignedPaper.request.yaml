@@ -1,0 +1,9 @@
+$kind: http-request
+name: getAssignedPaper
+url: http://localhost:8000/teacher/assigned-papers-to-check
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{vault:JWT_TOKEN}}"
+order: 2253562619742204
