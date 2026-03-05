@@ -9,7 +9,6 @@ import {
   createComprehensiveExamination,
   getAllExaminations,
   getExaminationById,
-  createSubjectPaper,
   getAllSubjectPapers,
   getSubjectPaperById,
   createUser,
@@ -39,7 +38,7 @@ adminRouter.get("/examination", verifyLoggedIn, verifyAdmin, getAllExaminations)
 adminRouter.get("/examination/:id", verifyLoggedIn, verifyAdmin, getExaminationById);
 
 // CRUD Subject Paper routes
-adminRouter.post("/subject-paper", verifyLoggedIn, verifyAdmin, createSubjectPaper);
+
 adminRouter.get("/subject-paper", verifyLoggedIn, verifyAdmin, getAllSubjectPapers);
 adminRouter.get("/subject-paper/:id", verifyLoggedIn, verifyAdmin, getSubjectPaperById);
 
