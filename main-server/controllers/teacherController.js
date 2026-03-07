@@ -546,3 +546,54 @@ export const getStudentById = async (req, res) => {
         res.status(500).json({ error: "Error fetching student details: " + err.message });
     }
 };
+
+/**
+ * 6. GET getAllUserAssignedInCenter
+ * Fetch a list of every students and teachers in the same center.
+ */
+export const getAllUserAssignedInCenter = async (req, res) => {
+    try {
+        const { center_id } = req.params;
+
+        const users = await sequelize.query(
+            `
+            SELECT 
+                u.id, 
+                (u.firstname_txt || ' ' || u.lastname_txt) AS "full_name", 
+                u.username, 
+                u.email_txt, 
+                u.phone_num_txt, 
+                u.role,
+                u.stud_batch_year, 
+                u.stud_exam_symbol_no, 
+                ec.center_name_txt
+            FROM public."User" u
+            JOIN public."ExaminationCenter" ec ON u.center_fk_id = ec.id
+            WHERE u.center_fk_id = :center_id AND u.role IN ('STUDENT', 'TEACHER')
+            ORDER BY u.role DESC, u.firstname_txt ASC;
+            `,
+            {
+                replacements: { center_id },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        if (users.length === 0) {
+            return res.status(404).json({ message: "No users found for this center." });
+        }
+
+        // Grouping users by role
+        const responseData = {
+            center_name: users[0].center_name_txt,
+            teachers: users.filter(u => u.role === 'TEACHER'),
+            students: users.filter(u => u.role === 'STUDENT')
+        };
+
+        res.status(200).json({
+            message: "Center users fetched successfully",
+            data: responseData,
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching center users: " + err.message });
+    }
+};
