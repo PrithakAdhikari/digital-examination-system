@@ -475,3 +475,74 @@ export const assignSubjectMarks = async (req, res) => {
         res.status(500).json({ error: "Error assigning marks: " + err.message });
     }
 };
+
+/**
+ * 5. GET getStudentById
+ * Fetch a comprehensive detailed response of the Student including every result.
+ */
+export const getStudentById = async (req, res) => {
+    try {
+        const { student_id } = req.params;
+
+        // 1. Fetch student basic info
+        const [student] = await sequelize.query(
+            `SELECT 
+                id, 
+                (firstname_txt || ' ' || lastname_txt) AS full_name, 
+                username, 
+                email_txt, 
+                phone_num_txt, 
+                stud_batch_year, 
+                stud_exam_symbol_no, 
+                stud_exam_reg_no 
+            FROM public."User" 
+            WHERE id = :student_id`,
+            {
+                replacements: { student_id },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        if (!student) {
+            return res.status(404).json({ error: "Student not found." });
+        }
+
+        // 2. Fetch all results for the student
+        const results = await sequelize.query(
+            `
+            SELECT 
+                sam.id AS result_id,
+                sam.marks_obtained,
+                sam.feedback,
+                es.subject_name_txt,
+                es.full_marks,
+                es.pass_marks,
+                e.exam_name_txt,
+                e."exam_startTime_ts",
+                sp.exam_batch_year
+            FROM public."StudentAnswerMarks" sam
+            JOIN public."StudentQuestionAnswer" sqa ON sam.stud_answer_fk_id = sqa.id
+            JOIN public."PaperQuestion" pq ON sqa.exam_question_fk_id = pq.id
+            JOIN public."SubjectPaper" sp ON pq.paper_fk_id = sp.id
+            JOIN public."ExaminationSubject" es ON sp.subject_fk_id = es.id
+            JOIN public.examinations e ON es.exam_fk_id = e.id
+            WHERE sam.stud_user_fk_id = :student_id
+            ORDER BY e."exam_startTime_ts" DESC;
+            `,
+            {
+                replacements: { student_id },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        res.status(200).json({
+            message: "Student details and results fetched successfully",
+            data: {
+                student: student || null,
+                results: results || []
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching student details: " + err.message });
+    }
+};

@@ -5,7 +5,8 @@ import {
     getAllAssignedPapersToCheck,
     getAllStudentsAnswersToCheck,
     getAnswerById,
-    assignSubjectMarks
+    assignSubjectMarks,
+    getStudentById
 } from "../controllers/teacherController.js";
 import { verifyLoggedIn, verifyTeacher } from "../middlewares/authMiddleware.js";
 
@@ -28,5 +29,8 @@ teacherRouter.get("/answer/:answer_id", verifyLoggedIn, verifyTeacher, getAnswer
 
 // 4. Assign marks for a subject
 teacherRouter.post("/assign-subject-marks", verifyLoggedIn, verifyTeacher, assignSubjectMarks);
+
+// 5. Get student details and results
+teacherRouter.get("/student/:student_id", verifyLoggedIn, verifyTeacher, getStudentById);
 
 export default teacherRouter;
