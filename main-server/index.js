@@ -8,6 +8,16 @@ import dotenv from "dotenv";
 import sequelize from "./database.js";
 import User from "./models/User.js";
 
+import ExamAnswerToken from "./models/ExamAnswerToken.js";
+import Examination from "./models/Examination.js";
+import ExaminationCenter from "./models/ExaminationCenter.js";
+import ExamStudent from "./models/ExamStudent.js";
+import PaperQuestion from "./models/PaperQuestion.js";
+import StudentAnswerMarks from "./models/StudentAnswerMarks.js";
+import StudentQuestionAnswer from "./models/StudentQuestionAnswer.js";
+import SubjectPaper from "./models/SubjectPaper.js";
+import Token from "./models/Token.js";
+
 import authRouter from "./routes/authRoutes.js";
 import adminRouter from "./routes/adminRoutes.js";
 import teacherRouter from "./routes/teacherRoutes.js";
