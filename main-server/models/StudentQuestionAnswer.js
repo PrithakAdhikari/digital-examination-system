@@ -21,6 +21,14 @@ const StudentQuestionAnswer = sequelize.define(
       type: DataTypes.JSONB,
       allowNull: false,
     },
+    exam_fk_id: {
+      type: DataTypes.BIGINT,
+      allowNull: true
+    },
+    subject_fk_id: {
+      type: DataTypes.BIGINT,
+      allowNull: true
+    }
   },
   {
     tableName: "StudentQuestionAnswer",
