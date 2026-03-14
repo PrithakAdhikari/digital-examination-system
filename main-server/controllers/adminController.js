@@ -262,7 +262,21 @@ export const getAllExaminations = async (req, res) => {
         const offset = (page - 1) * limit;
 
         const examinations = await sequelize.query(
-            `SELECT * FROM public.examinations ORDER BY "createdAt_ts" DESC LIMIT :limit OFFSET :offset`,
+            `
+            SELECT e.*,
+                   COALESCE(
+                     (SELECT json_agg(json_build_object('id', c.id, 'center_name_txt', c.center_name_txt))
+                      FROM public."ExaminationCenter" c
+                      WHERE c.id::text IN (
+                        SELECT jsonb_array_elements_text(e.center_fk_list)
+                      )
+                     ),
+                     '[]'
+                   ) AS centers_detail
+            FROM public.examinations e
+            ORDER BY e."createdAt_ts" DESC 
+            LIMIT :limit OFFSET :offset
+            `,
             {
                 replacements: { limit, offset },
                 type: Sequelize.QueryTypes.SELECT,
@@ -288,6 +302,248 @@ export const getAllExaminations = async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ error: "Error fetching examinations: " + err.message });
+    }
+};
+
+export const patchExaminationCenters = async (req, res) => {
+    const { id } = req.params;
+    const { center_fk_list } = req.body;
+
+    if (!Array.isArray(center_fk_list)) {
+        return res.status(400).json({ error: "center_fk_list must be an array" });
+    }
+
+    try {
+        const exam = await Examination.findByPk(id);
+        if (!exam) {
+            return res.status(404).json({ error: "Examination not found" });
+        }
+
+        // Validate centers exist
+        if (center_fk_list.length > 0) {
+            const [countResult] = await sequelize.query(
+                `SELECT COUNT(*) as count FROM public."ExaminationCenter" WHERE id IN (:ids)`,
+                { 
+                    replacements: { ids: center_fk_list }, 
+                    type: Sequelize.QueryTypes.SELECT 
+                }
+            );
+            if (parseInt(countResult.count) !== center_fk_list.length) {
+                return res.status(400).json({ error: "One or more examination centers do not exist." });
+            }
+        }
+
+        await exam.update({ center_fk_list });
+
+        res.status(200).json({
+            message: "Examination centers updated successfully",
+            data: exam
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error updating centers: " + err.message });
+    }
+};
+
+export const updateExamination = async (req, res) => {
+    const { id } = req.params;
+    const { error, value } = comprehensiveExamSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+    if (value.center_fk_list && value.center_fk_list.length > 0) {
+        try {
+            const [countResult] = await sequelize.query(
+                `SELECT COUNT(*) as count FROM public."ExaminationCenter" WHERE id IN (:ids)`,
+                { replacements: { ids: value.center_fk_list }, type: Sequelize.QueryTypes.SELECT }
+            );
+            if (parseInt(countResult.count, 10) !== value.center_fk_list.length) {
+                return res.status(400).json({ error: "One or more examination centers do not exist." });
+            }
+        } catch (err) {
+            return res.status(500).json({ error: "Error validating centers: " + err.message });
+        }
+    }
+    const examSetterIds = [...new Set(value.subjects.map((s) => s.exam_setter_user_fk_id))];
+    try {
+        const validSetters = await sequelize.query(
+            `SELECT id FROM public."User" WHERE id IN (:ids) AND role != 'STUDENT'`,
+            { replacements: { ids: examSetterIds }, type: Sequelize.QueryTypes.SELECT }
+        );
+        if ((Array.isArray(validSetters) ? validSetters.length : 0) !== examSetterIds.length) {
+            return res.status(400).json({ error: "One or more exam setter users do not exist or are students." });
+        }
+    } catch (err) {
+        return res.status(500).json({ error: "Error validating exam setters: " + err.message });
+    }
+    const t = await sequelize.transaction();
+    try {
+        const exam = await Examination.findByPk(id);
+        if (!exam) {
+            await t.rollback();
+            return res.status(404).json({ error: "Examination not found" });
+        }
+        await exam.update(
+            {
+                exam_name_txt: value.exam_name_txt,
+                exam_startTime_ts: value.exam_startTime_ts,
+                result_time_ts: value.result_time_ts,
+                center_fk_list: value.center_fk_list,
+            },
+            { transaction: t }
+        );
+        await ExaminationSubject.destroy({ where: { exam_fk_id: id }, transaction: t });
+        const subjectsToCreate = value.subjects.map((s) => ({
+            ...s,
+            exam_fk_id: id,
+        }));
+        await ExaminationSubject.bulkCreate(subjectsToCreate, { transaction: t });
+        await t.commit();
+        res.status(200).json({
+            message: "Examination updated successfully",
+            data: { examination: exam, subjectsCount: subjectsToCreate.length },
+        });
+    } catch (err) {
+        await t.rollback();
+        res.status(500).json({ error: "Error updating examination: " + err.message });
+    }
+};
+
+export const deleteExamination = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const exam = await Examination.findByPk(id);
+        if (!exam) {
+            return res.status(404).json({ error: "Examination not found" });
+        }
+        await ExaminationSubject.destroy({ where: { exam_fk_id: id } });
+        await exam.destroy();
+        res.status(200).json({ message: "Examination deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ error: "Error deleting examination: " + err.message });
+    }
+};
+
+// --- Dashboard Controllers ---
+
+export const getExamSummary = async (req, res) => {
+    try {
+        const now = new Date();
+        const [totalRow] = await sequelize.query(
+            `SELECT COUNT(*) AS count FROM public.examinations`,
+            { type: Sequelize.QueryTypes.SELECT }
+        );
+        const [ongoingRow] = await sequelize.query(
+            `SELECT COUNT(*) AS count FROM public.examinations
+             WHERE "exam_startTime_ts" <= :now AND ("result_time_ts" IS NULL OR "result_time_ts" >= :now)`,
+            { replacements: { now }, type: Sequelize.QueryTypes.SELECT }
+        );
+        const [finishedRow] = await sequelize.query(
+            `SELECT COUNT(*) AS count FROM public.examinations
+             WHERE "result_time_ts" IS NOT NULL AND "result_time_ts" < :now`,
+            { replacements: { now }, type: Sequelize.QueryTypes.SELECT }
+        );
+        const total = parseInt(totalRow?.count ?? 0, 10);
+        const ongoing = parseInt(ongoingRow?.count ?? 0, 10);
+        const finished = parseInt(finishedRow?.count ?? 0, 10);
+        res.status(200).json({
+            message: "Exam summary fetched",
+            data: { total, ongoing, finished },
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching exam summary: " + err.message });
+    }
+};
+
+export const getUserCounts = async (req, res) => {
+    try {
+        const rows = await sequelize.query(
+            `SELECT role, COUNT(*) AS count FROM public."User" WHERE is_active = true GROUP BY role`,
+            { type: Sequelize.QueryTypes.SELECT }
+        );
+        const list = Array.isArray(rows) ? rows : [rows].filter(Boolean);
+        const teachers = list.find((r) => r.role === "TEACHER")?.count ?? 0;
+        const students = list.find((r) => r.role === "STUDENT")?.count ?? 0;
+        const admins =
+            (list.find((r) => r.role === "ADMIN")?.count ?? 0) +
+            (list.find((r) => r.role === "SUPERADMIN")?.count ?? 0);
+        res.status(200).json({
+            message: "User counts fetched",
+            data: { teachers: parseInt(teachers, 10), students: parseInt(students, 10), admins: parseInt(admins, 10) },
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching user counts: " + err.message });
+    }
+};
+
+export const getTopStudents = async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit, 10) || 3, 10);
+        const top = await sequelize.query(
+            `SELECT u.id, u.firstname_txt, u.lastname_txt, u.username,
+                    COALESCE(SUM(sam.marks_obtained), 0) AS total_marks
+             FROM public."User" u
+             LEFT JOIN public."StudentAnswerMarks" sam ON sam.stud_user_fk_id = u.id
+             WHERE u.role = 'STUDENT' AND u.is_active = true
+             GROUP BY u.id, u.firstname_txt, u.lastname_txt, u.username
+             ORDER BY total_marks DESC
+             LIMIT :limit`,
+            { replacements: { limit }, type: Sequelize.QueryTypes.SELECT }
+        );
+        const data = (Array.isArray(top) ? top : [top]).map((r) => ({
+            id: r.id,
+            name: [r.firstname_txt, r.lastname_txt].filter(Boolean).join(" ") || r.username,
+            username: r.username,
+            scoreOrCgpa: Number(r.total_marks) || 0,
+        }));
+        res.status(200).json({ message: "Top students fetched", data });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching top students: " + err.message });
+    }
+};
+
+export const getExamsCreationTrend = async (req, res) => {
+    try {
+        const result = await sequelize.query(
+            `SELECT DATE("createdAt_ts") AS date, COUNT(*) AS count
+             FROM public.examinations
+             GROUP BY DATE("createdAt_ts")
+             ORDER BY date ASC`,
+            { type: Sequelize.QueryTypes.SELECT }
+        );
+        const data = (Array.isArray(result) ? result : [result]).map((r) => ({
+            date: r.date ? (r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10)) : "",
+            count: parseInt(r.count, 10),
+        }));
+        res.status(200).json({ message: "Exams creation trend fetched", data });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching exams creation trend: " + err.message });
+    }
+};
+
+export const getExamAverageScores = async (req, res) => {
+    try {
+        const result = await sequelize.query(
+            `SELECT e.id AS "examinationId", e.exam_name_txt AS "examinationName",
+                    AVG(stud_total.total) AS "averageScore"
+             FROM public.examinations e
+             INNER JOIN (
+               SELECT exam_fk_id, stud_user_fk_id, SUM(marks_obtained) AS total
+               FROM public."StudentAnswerMarks"
+               WHERE exam_fk_id IS NOT NULL
+               GROUP BY exam_fk_id, stud_user_fk_id
+             ) stud_total ON stud_total.exam_fk_id = e.id
+             GROUP BY e.id, e.exam_name_txt
+             ORDER BY e."createdAt_ts" DESC`,
+            { type: Sequelize.QueryTypes.SELECT }
+        );
+        const data = (Array.isArray(result) ? result : [result]).map((r) => ({
+            examinationId: r.examinationId,
+            examinationName: r.examinationName,
+            averageScore: Number(r.averageScore) != null ? Math.round(Number(r.averageScore) * 10) / 10 : null,
+        }));
+        res.status(200).json({ message: "Exam average scores fetched", data });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching exam average scores: " + err.message });
     }
 };
 

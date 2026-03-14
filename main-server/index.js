@@ -21,6 +21,7 @@ import Token from "./models/Token.js";
 import authRouter from "./routes/authRoutes.js";
 import adminRouter from "./routes/adminRoutes.js";
 import teacherRouter from "./routes/teacherRoutes.js";
+import studentRouter from "./routes/studentRoutes.js";
 
 import http from "http";
 
@@ -64,6 +65,7 @@ app.get("/", (req, res) => {
 app.use("/auth", authRouter);
 app.use("/admin", adminRouter);
 app.use("/teacher", teacherRouter);
+app.use("/student", studentRouter);
 
 // Protected route example
 app.get(

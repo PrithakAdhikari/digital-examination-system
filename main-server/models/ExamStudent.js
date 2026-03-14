@@ -24,6 +24,11 @@ const ExamStudent = sequelize.define(
     submitted_at: {
         type: DataTypes.DATE,
         allowNull: true
+    },
+    status: {
+        type: DataTypes.ENUM("REGISTERED", "STARTED", "SUBMITTED"),
+        defaultValue: "REGISTERED",
+        allowNull: false
     }
   },
   {

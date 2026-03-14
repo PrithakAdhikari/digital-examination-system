@@ -1,0 +1,113 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as adminApi from "../api/admin.js";
+import { adminKeys } from "../api/queryKeys.js";
+
+export function useExamSummary() {
+  return useQuery({
+    queryKey: adminKeys.examSummary(),
+    queryFn: adminApi.getExamSummary,
+  });
+}
+
+export function useUserCounts() {
+  return useQuery({
+    queryKey: adminKeys.userCounts(),
+    queryFn: adminApi.getUserCounts,
+  });
+}
+
+export function useTopStudents() {
+  return useQuery({
+    queryKey: adminKeys.topStudents(),
+    queryFn: adminApi.getTopStudents,
+  });
+}
+
+export function useExamsCreationTrend() {
+  return useQuery({
+    queryKey: adminKeys.examsCreationTrend(),
+    queryFn: adminApi.getExamsCreationTrend,
+  });
+}
+
+export function useExamAverageScores() {
+  return useQuery({
+    queryKey: adminKeys.examAverageScores(),
+    queryFn: adminApi.getExamAverageScores,
+  });
+}
+
+export function useExaminations(params) {
+  return useQuery({
+    queryKey: adminKeys.examinations(params),
+    queryFn: () => adminApi.getExaminations(params),
+  });
+}
+
+export function useExamination(id, options = {}) {
+  return useQuery({
+    queryKey: adminKeys.examination(id),
+    queryFn: () => adminApi.getExamination(id),
+    enabled: !!id && (options.enabled !== false),
+    ...options,
+  });
+}
+
+export function useCenters(params) {
+  return useQuery({
+    queryKey: adminKeys.centers(params),
+    queryFn: () => adminApi.getCenters(params),
+  });
+}
+
+export function useUsers(params) {
+  return useQuery({
+    queryKey: adminKeys.users(params),
+    queryFn: () => adminApi.getUsers(params),
+  });
+}
+
+export function useCreateExamination() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createExamination,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.examinations() });
+      qc.invalidateQueries({ queryKey: adminKeys.dashboard() });
+    },
+  });
+}
+
+export function useUpdateExamination(id) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) => adminApi.updateExamination(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.examinations() });
+      qc.invalidateQueries({ queryKey: adminKeys.examination(id) });
+      qc.invalidateQueries({ queryKey: adminKeys.dashboard() });
+    },
+  });
+}
+
+export function useDeleteExamination() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.deleteExamination,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.examinations() });
+      qc.invalidateQueries({ queryKey: adminKeys.dashboard() });
+    },
+  });
+}
+
+export function usePatchExaminationCenters(id) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (center_fk_list) => adminApi.patchExaminationCenters(id, center_fk_list),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.examinations() });
+      qc.invalidateQueries({ queryKey: adminKeys.examination(id) });
+    },
+  });
+}

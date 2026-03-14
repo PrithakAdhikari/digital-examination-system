@@ -9,6 +9,14 @@ import {
   createComprehensiveExamination,
   getAllExaminations,
   getExaminationById,
+  updateExamination,
+  patchExaminationCenters,
+  deleteExamination,
+  getExamSummary,
+  getUserCounts,
+  getTopStudents,
+  getExamsCreationTrend,
+  getExamAverageScores,
   getAllSubjectPapers,
   getSubjectPaperById,
   createUser,
@@ -32,10 +40,20 @@ adminRouter.put("/center/:id", verifyLoggedIn, verifyAdmin, updateCenter);
 adminRouter.patch("/center/:id", verifyLoggedIn, verifyAdmin, patchCenter);
 adminRouter.delete("/center/:id", verifyLoggedIn, verifyAdmin, deleteCenter);
 
-// Comprehensive Examination creation and Fetching
+// Dashboard
+adminRouter.get("/dashboard/exam-summary", verifyLoggedIn, verifyAdmin, getExamSummary);
+adminRouter.get("/dashboard/user-counts", verifyLoggedIn, verifyAdmin, getUserCounts);
+adminRouter.get("/dashboard/top-students", verifyLoggedIn, verifyAdmin, getTopStudents);
+adminRouter.get("/dashboard/exams-creation-trend", verifyLoggedIn, verifyAdmin, getExamsCreationTrend);
+adminRouter.get("/dashboard/exam-average-scores", verifyLoggedIn, verifyAdmin, getExamAverageScores);
+
+// Comprehensive Examination creation, fetch, update, delete
 adminRouter.post("/examination", verifyLoggedIn, verifyAdmin, createComprehensiveExamination);
 adminRouter.get("/examination", verifyLoggedIn, verifyAdmin, getAllExaminations);
 adminRouter.get("/examination/:id", verifyLoggedIn, verifyAdmin, getExaminationById);
+adminRouter.put("/examination/:id", verifyLoggedIn, verifyAdmin, updateExamination);
+adminRouter.patch("/examination/:id/centers", verifyLoggedIn, verifyAdmin, patchExaminationCenters);
+adminRouter.delete("/examination/:id", verifyLoggedIn, verifyAdmin, deleteExamination);
 
 // CRUD Subject Paper routes
 
