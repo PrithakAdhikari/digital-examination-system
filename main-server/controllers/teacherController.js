@@ -548,12 +548,12 @@ export const getStudentById = async (req, res) => {
 };
 
 /**
- * 6. GET getAllUserAssignedInCenter
- * Fetch a list of every students and teachers in the same center.
+ * 6. GET getAllStudentInTeacherCenter
+ * Fetch a list of every student in the logged in teacher's center.
  */
-export const getAllUserAssignedInCenter = async (req, res) => {
+export const getAllStudentInTeacherCenter = async (req, res) => {
     try {
-        const { center_id } = req.params;
+        const userId = req.user.id;
 
         const users = await sequelize.query(
             `
@@ -569,31 +569,30 @@ export const getAllUserAssignedInCenter = async (req, res) => {
                 ec.center_name_txt
             FROM public."User" u
             JOIN public."ExaminationCenter" ec ON u.center_fk_id = ec.id
-            WHERE u.center_fk_id = :center_id AND u.role IN ('STUDENT', 'TEACHER')
-            ORDER BY u.role DESC, u.firstname_txt ASC;
+            WHERE u.center_fk_id = (SELECT center_fk_id FROM public."User" WHERE id = :userId)
+              AND u.role = 'STUDENT'
+            ORDER BY u.firstname_txt ASC;
             `,
             {
-                replacements: { center_id },
+                replacements: { userId },
                 type: Sequelize.QueryTypes.SELECT,
             }
         );
 
         if (users.length === 0) {
-            return res.status(404).json({ message: "No users found for this center." });
+            return res.status(404).json({ message: "No students found for this center." });
         }
 
-        // Grouping users by role
         const responseData = {
             center_name: users[0].center_name_txt,
-            teachers: users.filter(u => u.role === 'TEACHER'),
-            students: users.filter(u => u.role === 'STUDENT')
+            students: users
         };
 
         res.status(200).json({
-            message: "Center users fetched successfully",
+            message: "Center students fetched successfully",
             data: responseData,
         });
     } catch (err) {
-        res.status(500).json({ error: "Error fetching center users: " + err.message });
+        res.status(500).json({ error: "Error fetching center students: " + err.message });
     }
 };

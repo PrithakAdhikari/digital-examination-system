@@ -7,7 +7,7 @@ import {
     getAnswerById,
     assignSubjectMarks,
     getStudentById,
-    getAllUserAssignedInCenter
+    getAllStudentInTeacherCenter
 } from "../controllers/teacherController.js";
 import { verifyLoggedIn, verifyTeacher } from "../middlewares/authMiddleware.js";
 
@@ -34,7 +34,7 @@ teacherRouter.post("/assign-subject-marks", verifyLoggedIn, verifyTeacher, assig
 // 5. Get student details and results
 teacherRouter.get("/student/:student_id", verifyLoggedIn, verifyTeacher, getStudentById);
 
-// 6. Get all users (students and teachers) in a center
-teacherRouter.get("/center-users/:center_id", verifyLoggedIn, verifyTeacher, getAllUserAssignedInCenter);
+// 6. Get all students in a teacher's center
+teacherRouter.get("/center-students", verifyLoggedIn, verifyTeacher, getAllStudentInTeacherCenter);
 
 export default teacherRouter;
