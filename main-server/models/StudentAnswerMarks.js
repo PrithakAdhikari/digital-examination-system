@@ -21,6 +21,14 @@ const StudentAnswerMarks = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
     },
+    exam_fk_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    subject_fk_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
     feedback: {
       type: DataTypes.TEXT("long"),
       allowNull: true,
