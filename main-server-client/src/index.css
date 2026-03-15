@@ -91,3 +91,81 @@ body {
 .btn-primary {
   @apply shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all duration-300;
 }
+
+/* React Datepicker Customization */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker {
+  @apply glass-effect border-base-300/50 rounded-2xl overflow-hidden font-sans shadow-2xl !important;
+  font-family: 'Outfit', sans-serif !important;
+}
+
+.react-datepicker__header {
+  @apply bg-base-200/50 border-b border-base-300/50 pt-4 !important;
+}
+
+.react-datepicker__current-month, 
+.react-datepicker-time__header,
+.react-datepicker__day-name {
+  @apply text-base-content font-bold !important;
+}
+
+.react-datepicker__day {
+  @apply text-base-content hover:bg-primary hover:text-primary-content rounded-lg transition-all !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  @apply bg-primary text-primary-content font-bold rounded-lg !important;
+}
+
+.react-datepicker__day--outside-month {
+  @apply opacity-30 !important;
+}
+
+.react-datepicker__time-container {
+  @apply border-l border-base-300/50 w-32 !important;
+}
+
+.react-datepicker__time {
+  @apply bg-transparent !important;
+}
+
+.react-datepicker__time-box {
+  @apply w-full rounded-none !important;
+}
+
+.react-datepicker__time-list-item {
+  @apply text-base-content hover:bg-primary/20 transition-all flex items-center justify-center h-10 !important;
+}
+
+.react-datepicker__time-list-item--selected {
+  @apply bg-primary text-primary-content font-bold !important;
+}
+
+.react-datepicker__navigation {
+  @apply top-4 !important;
+}
+
+.react-datepicker__navigation-icon::before {
+  @apply border-base-content !important;
+}
+
+.react-datepicker__day--disabled {
+  @apply opacity-20 !important;
+}
+
+/* Dark mode specific adjustments for datepicker if needed beyond DaisyUI variables */
+[data-theme='dark'] .react-datepicker {
+  background: rgba(15, 23, 42, 0.9) !important;
+}
+
+[data-theme='dark'] .react-datepicker__time-container {
+  background: transparent !important;
+}
+
+.react-datepicker__input-container input {
+  @apply cursor-pointer;
+}

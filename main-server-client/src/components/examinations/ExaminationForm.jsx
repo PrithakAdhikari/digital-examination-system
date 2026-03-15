@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { useCenters } from "../../hooks/useAdminQueries.js";
 import SubjectInputBlock from "./SubjectInputBlock.jsx";
 
@@ -21,8 +23,8 @@ export default function ExaminationForm({
 
   const getDefaultForm = () => ({
     exam_name_txt: "",
-    exam_startTime_ts: "",
-    result_time_ts: "",
+    exam_startTime_ts: null,
+    result_time_ts: null,
     center_fk_list: [],
     subjects: [emptySubject()],
   });
@@ -35,11 +37,11 @@ export default function ExaminationForm({
     return {
       exam_name_txt: examination?.exam_name_txt ?? "",
       exam_startTime_ts: examination?.exam_startTime_ts
-        ? new Date(examination.exam_startTime_ts).toISOString().slice(0, 16)
-        : "",
+        ? new Date(examination.exam_startTime_ts)
+        : null,
       result_time_ts: examination?.result_time_ts
-        ? new Date(examination.result_time_ts).toISOString().slice(0, 16)
-        : "",
+        ? new Date(examination.result_time_ts)
+        : null,
       center_fk_list: centerIds,
       subjects:
         subjects?.length > 0
@@ -100,8 +102,8 @@ export default function ExaminationForm({
     e.preventDefault();
     const payload = {
       exam_name_txt: form.exam_name_txt.trim(),
-      exam_startTime_ts: form.exam_startTime_ts ? new Date(form.exam_startTime_ts).toISOString() : null,
-      result_time_ts: form.result_time_ts ? new Date(form.result_time_ts).toISOString() : null,
+      exam_startTime_ts: form.exam_startTime_ts ? form.exam_startTime_ts.toISOString() : null,
+      result_time_ts: form.result_time_ts ? form.result_time_ts.toISOString() : null,
       center_fk_list: form.center_fk_list?.length ? form.center_fk_list : null,
       subjects: form.subjects
         .filter((s) => String(s.subject_name_txt ?? "").trim())
@@ -150,21 +152,25 @@ export default function ExaminationForm({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest mb-2 block ml-1">Starting Date & Time</label>
-                  <input
-                    type="datetime-local"
+                  <DatePicker
+                    selected={form.exam_startTime_ts}
+                    onChange={(date) => setForm((p) => ({ ...p, exam_startTime_ts: date }))}
+                    showTimeSelect
+                    dateFormat="MMMM d, yyyy h:mm aa"
+                    placeholderText="Select start time"
                     className="input input-bordered w-full bg-base-100/50 focus:bg-base-100 transition-all rounded-xl border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10 font-medium"
-                    value={form.exam_startTime_ts}
-                    onChange={(e) => setForm((p) => ({ ...p, exam_startTime_ts: e.target.value }))}
                     required
                   />
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest mb-2 block ml-1">Result Publication Date</label>
-                  <input
-                    type="datetime-local"
+                  <DatePicker
+                    selected={form.result_time_ts}
+                    onChange={(date) => setForm((p) => ({ ...p, result_time_ts: date }))}
+                    showTimeSelect
+                    dateFormat="MMMM d, yyyy h:mm aa"
+                    placeholderText="Select result time"
                     className="input input-bordered w-full bg-base-100/50 focus:bg-base-100 transition-all rounded-xl border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10 font-medium"
-                    value={form.result_time_ts}
-                    onChange={(e) => setForm((p) => ({ ...p, result_time_ts: e.target.value }))}
                   />
                 </div>
               </div>

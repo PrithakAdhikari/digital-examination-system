@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useTheme } from "../../context/ThemeContext.jsx";
 import { clearStoredToken } from "../../api/axiosInstance.js";
 
 export default function Navbar({ onMenuClick }) {
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -16,15 +17,6 @@ export default function Navbar({ onMenuClick }) {
       }
     }
   }, []);
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
-  };
 
   const handleLogout = () => {
     clearStoredToken();
