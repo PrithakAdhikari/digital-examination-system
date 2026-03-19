@@ -63,6 +63,18 @@ export function getCenters(params = {}) {
     }));
 }
 
+export function createCenter(payload) {
+  return axiosInstance.post(`${admin}/center`, payload).then((res) => res.data);
+}
+
+export function updateCenter(id, payload) {
+  return axiosInstance.put(`${admin}/center/${id}`, payload).then((res) => res.data);
+}
+
+export function deleteCenter(id) {
+  return axiosInstance.delete(`${admin}/center/${id}`).then((res) => res.data);
+}
+
 // Users (for exam setter dropdown)
 export function getUsers(params = {}) {
   return axiosInstance

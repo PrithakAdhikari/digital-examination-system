@@ -1,7 +1,7 @@
 import { DataTypes, INTEGER } from "sequelize";
-import sequelize from "../database.js";
+import sequelizeSqlite from "../sqliteDatabase.js";
 
-const Token = sequelize.define("Token", {
+const Token = sequelizeSqlite.define("Token", {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,

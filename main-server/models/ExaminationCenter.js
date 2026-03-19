@@ -9,6 +9,19 @@ const ExaminationCenter = sequelize.define(
       primaryKey: true,
       autoIncrement: true,
     },
+    exam_center_id: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      unique: true,
+    },
+    provision_key_hash: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    secret_key_hash: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
     center_name_txt: {
       type: DataTypes.STRING(255),
       allowNull: false,

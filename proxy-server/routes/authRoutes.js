@@ -5,6 +5,7 @@ import {
   refreshAccessToken,
   profile
 } from "../controllers/authController.js";
+import { saveProvisionKey, registerWithMainServer, getRegistrationStatus } from "../controllers/registrationController.js";
 import multer from "multer";
 import { validateRequest } from "../middlewares/validate.js";
 import { userValidationRules } from "../validationRules.js";
@@ -34,5 +35,10 @@ authRouter.post(
 );
 
 authRouter.get("/profile/:id", userValidationRules.profile, profile);
+
+// Proxy Registration Routes
+authRouter.get("/registration-status", getRegistrationStatus);
+authRouter.post("/save-provision-key", saveProvisionKey);
+authRouter.post("/register-with-main", registerWithMainServer);
 
 export default authRouter;

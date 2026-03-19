@@ -7,7 +7,7 @@ import LocalStrategy from "passport-local";
 import User from "../models/User.js";
 import Token from "../models/Token.js";
 import cloudinary from "../cloudinaryConfig.js";
-import sequelize from "../database.js";
+import sequelizeSqlite from "../sqliteDatabase.js";
 import { Sequelize } from "sequelize";
 
 const generateAccessToken = (user) => {
@@ -158,16 +158,9 @@ export const profile = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [user] = await sequelize.query(
-      `
-      SELECT id, username, email, "firstName", "lastName", "profilePicture", "profilePicturePublicId"
-	    FROM public.users WHERE id = :userId;
-      `,
-      {
-        type: Sequelize.QueryTypes.SELECT,
-        replacements: { userId: id },
-      }
-    );
+    const user = await User.findByPk(id, {
+      attributes: ["id", "username", "email", "firstName", "lastName", "profilePicture", "profilePicturePublicId"]
+    });
 
     if (!user) {
       return res.status(404).json({ error: "User not found." });

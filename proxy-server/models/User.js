@@ -1,7 +1,7 @@
-import sequelize from "../database.js";
+import sequelizeSqlite from "../sqliteDatabase.js";
 import { DataTypes } from "sequelize";
 
-const User = sequelize.define(
+const User = sequelizeSqlite.define(
   "User",
   {
     id: {

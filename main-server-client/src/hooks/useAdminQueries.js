@@ -111,3 +111,33 @@ export function usePatchExaminationCenters(id) {
     },
   });
 }
+
+export function useCreateCenter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createCenter,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.centers() });
+    },
+  });
+}
+
+export function useUpdateCenter(id) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) => adminApi.updateCenter(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.centers() });
+    },
+  });
+}
+
+export function useDeleteCenter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.deleteCenter,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.centers() });
+    },
+  });
+}

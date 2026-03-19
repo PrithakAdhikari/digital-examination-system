@@ -2,6 +2,7 @@ import Joi from "joi";
 import crypto from "crypto";
 import Examination from "../models/Examination.js";
 import ExaminationSubject from "../models/ExaminationSubject.js";
+import bcrypt from "bcrypt";
 import ExaminationCenter from "../models/ExaminationCenter.js";
 import SubjectPaper from "../models/SubjectPaper.js";
 import PaperQuestion from "../models/PaperQuestion.js";
@@ -556,10 +557,22 @@ export const createCenter = async (req, res) => {
     }
 
     try {
-        const center = await ExaminationCenter.create(value);
+        const exam_center_id = crypto.randomUUID();
+        const provision_key = crypto.randomBytes(32).toString("hex");
+        const provision_key_hash = await bcrypt.hash(provision_key, 10);
+
+        const center = await ExaminationCenter.create({
+            ...value,
+            exam_center_id,
+            provision_key_hash,
+        });
+
         res.status(201).json({
             message: "Examination center created successfully",
-            data: center,
+            data: {
+                ...center.toJSON(),
+                provision_key, // This is visible only once
+            },
         });
     } catch (err) {
         res.status(500).json({ error: "Error creating center: " + err.message });

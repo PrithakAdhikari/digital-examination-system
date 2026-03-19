@@ -1,18 +1,19 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import bodyParser from "body-parser";
 import passport from "passport";
 import { ExtractJwt, Strategy as JWTStrategy } from "passport-jwt";
 import cors from "cors";
-import dotenv from "dotenv";
 
-import sequelize from "./database.js";
 import User from "./models/User.js";
 
 import authRouter from "./routes/authRoutes.js";
+import sequelizeSqlite from "./sqliteDatabase.js";
+import ProxySetting from "./models/ProxySetting.js";
 
 import http from "http";
-
-dotenv.config();
 
 const PORT = process.env.PORT || 8000;
 
@@ -79,9 +80,10 @@ app.get(
 // Database connection and server startup
 const runApp = async () => {
   try {
-    await sequelize.authenticate();
-    console.log("Database connected successfully.");
-    await sequelize.sync({ alter: true });
+    await sequelizeSqlite.authenticate();
+    console.log("SQLite database connected successfully.");
+    await sequelizeSqlite.sync({ alter: true });
+    console.log("SQLite database synced.");
 
     server.listen(PORT, "0.0.0.0", () => {
       console.log(`Server is running on http://localhost:${PORT}`);
