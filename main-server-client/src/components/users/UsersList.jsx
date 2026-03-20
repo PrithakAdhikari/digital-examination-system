@@ -86,17 +86,31 @@ export default function UsersList({ users, pagination, setPage, centersById, onC
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
-                          className="btn btn-sm rounded-xl btn-ghost hover:bg-primary/20 hover:text-primary"
+                          className="btn btn-ghost btn-circle btn-sm bg-base-200/50 hover:bg-primary/20 hover:text-primary"
                           onClick={() => onEdit(row)}
+                          aria-label="Edit user"
+                          title="Edit"
                         >
-                          Edit
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
                         </button>
                         <button
                           type="button"
-                          className={`btn btn-sm rounded-xl btn-ghost ${row.is_active ? "hover:bg-error/20 hover:text-error" : "hover:bg-success/20 hover:text-success"}`}
+                          className={`btn btn-ghost btn-circle btn-sm bg-base-200/50 ${row.is_active ? "hover:bg-error/20 hover:text-error" : "hover:bg-success/20 hover:text-success"}`}
                           onClick={() => onDelete(row)}
+                          aria-label={row.is_active ? "Deactivate user" : "Activate user"}
+                          title={row.is_active ? "Deactivate" : "Activate"}
                         >
-                          {row.is_active ? "Deactivate" : "Activate User"}
+                          {row.is_active ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
                         </button>
                       </div>
                     </td>
@@ -117,13 +131,33 @@ export default function UsersList({ users, pagination, setPage, centersById, onC
                   <div className="badge badge-outline rounded-xl font-black tracking-wide">{row.role || "—"}</div>
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" className="btn btn-xs rounded-lg" onClick={() => onEdit(row)}>Edit</button>
                   <button
                     type="button"
-                    className={`btn btn-xs rounded-lg ${row.is_active ? "btn-error btn-outline" : "btn-success btn-outline"}`}
-                    onClick={() => onDelete(row)}
+                    className="btn btn-ghost btn-circle btn-xs bg-base-200/50 hover:bg-primary/20 hover:text-primary"
+                    onClick={() => onEdit(row)}
+                    aria-label="Edit user"
+                    title="Edit"
                   >
-                    {row.is_active ? "Deactivate" : "Activate User"}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-ghost btn-circle btn-xs bg-base-200/50 ${row.is_active ? "hover:bg-error/20 hover:text-error" : "hover:bg-success/20 hover:text-success"}`}
+                    onClick={() => onDelete(row)}
+                    aria-label={row.is_active ? "Deactivate user" : "Activate user"}
+                    title={row.is_active ? "Deactivate" : "Activate"}
+                  >
+                    {row.is_active ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
                   </button>
                 </div>
               </div>
