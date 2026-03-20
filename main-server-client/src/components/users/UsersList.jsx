@@ -12,7 +12,7 @@ function studentValue(user, key) {
   return user?.[key] || "—";
 }
 
-export default function UsersList({ users, centersById, onCreateNew, onEdit, onDelete }) {
+export default function UsersList({ users, pagination, setPage, centersById, onCreateNew, onEdit, onDelete }) {
   const list = users ?? [];
 
   return (
@@ -93,10 +93,10 @@ export default function UsersList({ users, centersById, onCreateNew, onEdit, onD
                         </button>
                         <button
                           type="button"
-                          className="btn btn-sm rounded-xl btn-ghost hover:bg-error/20 hover:text-error"
+                          className={`btn btn-sm rounded-xl btn-ghost ${row.is_active ? "hover:bg-error/20 hover:text-error" : "hover:bg-success/20 hover:text-success"}`}
                           onClick={() => onDelete(row)}
                         >
-                          Delete
+                          {row.is_active ? "Deactivate" : "Activate User"}
                         </button>
                       </div>
                     </td>
@@ -118,7 +118,13 @@ export default function UsersList({ users, centersById, onCreateNew, onEdit, onD
                 </div>
                 <div className="flex gap-2">
                   <button type="button" className="btn btn-xs rounded-lg" onClick={() => onEdit(row)}>Edit</button>
-                  <button type="button" className="btn btn-xs rounded-lg btn-error btn-outline" onClick={() => onDelete(row)}>Delete</button>
+                  <button
+                    type="button"
+                    className={`btn btn-xs rounded-lg ${row.is_active ? "btn-error btn-outline" : "btn-success btn-outline"}`}
+                    onClick={() => onDelete(row)}
+                  >
+                    {row.is_active ? "Deactivate" : "Activate User"}
+                  </button>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 text-[11px] font-bold">
@@ -146,6 +152,38 @@ export default function UsersList({ users, centersById, onCreateNew, onEdit, onD
             <div className="text-center py-12 opacity-40 font-semibold">No users found.</div>
           ) : null}
         </div>
+
+        {pagination?.totalPages > 1 && (
+          <div className="p-8 border-t border-base-300/30 bg-base-200/10">
+            <div className="flex justify-center">
+              <div className="join glass-effect border border-base-300/30 shadow-sm p-1">
+                <button
+                  type="button"
+                  className="join-item btn btn-sm btn-ghost rounded-lg font-bold"
+                  disabled={pagination.page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div className="join-item btn btn-sm btn-ghost px-6 no-animation font-black text-xs">
+                  {pagination.page} <span className="mx-2 opacity-30">/</span> {pagination.totalPages}
+                </div>
+                <button
+                  type="button"
+                  className="join-item btn btn-sm btn-ghost rounded-lg font-bold"
+                  disabled={pagination.page >= pagination.totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

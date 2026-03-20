@@ -171,3 +171,13 @@ export function useDeactivateUser() {
     },
   });
 }
+
+export function useActivateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.activateUser,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.users() });
+    },
+  });
+}

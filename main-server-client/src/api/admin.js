@@ -96,3 +96,7 @@ export function updateUser(id, payload) {
 export function deactivateUser(id) {
   return axiosInstance.patch(`${admin}/users/${id}/deactivate`).then((res) => res.data);
 }
+
+export function activateUser(id) {
+  return axiosInstance.patch(`${admin}/users/${id}/activate`).then((res) => res.data);
+}
