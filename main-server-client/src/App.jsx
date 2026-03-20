@@ -9,6 +9,7 @@ import DashboardPage from "./pages/DashboardPage.jsx";
 import ExaminationsPage from "./pages/ExaminationsPage.jsx";
 import ExaminationFormPage from "./pages/ExaminationFormPage.jsx";
 import ExamCentersPage from "./pages/ExamCentersPage.jsx";
+import UserPage from "./pages/UserPage.jsx";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,7 +42,7 @@ function App() {
                 <Route path="examinations/new" element={<ExaminationFormPage />} />
                 <Route path="examinations/edit/:id" element={<ExaminationFormPage />} />
                 <Route path="centers" element={<ExamCentersPage />} />
-                <Route path="users" element={<div className="p-4">Users (placeholder)</div>} />
+                <Route path="users" element={<UserPage />} />
               </Route>
               <Route path="/" element={<Navigate to="/admin" replace />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />

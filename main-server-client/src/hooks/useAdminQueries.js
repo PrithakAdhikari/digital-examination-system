@@ -141,3 +141,43 @@ export function useDeleteCenter() {
     },
   });
 }
+
+export function useCreateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createUser,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.users() });
+    },
+  });
+}
+
+export function useUpdateUser(id) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) => adminApi.updateUser(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.users() });
+    },
+  });
+}
+
+export function useDeactivateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.deactivateUser,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.users() });
+    },
+  });
+}
+
+export function useActivateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.activateUser,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.users() });
+    },
+  });
+}

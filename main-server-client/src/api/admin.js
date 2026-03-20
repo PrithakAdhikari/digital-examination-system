@@ -84,3 +84,19 @@ export function getUsers(params = {}) {
       pagination: res.data?.pagination ?? {},
     }));
 }
+
+export function createUser(payload) {
+  return axiosInstance.post(`${admin}/users`, payload).then((res) => res.data);
+}
+
+export function updateUser(id, payload) {
+  return axiosInstance.put(`${admin}/users/${id}`, payload).then((res) => res.data);
+}
+
+export function deactivateUser(id) {
+  return axiosInstance.patch(`${admin}/users/${id}/deactivate`).then((res) => res.data);
+}
+
+export function activateUser(id) {
+  return axiosInstance.patch(`${admin}/users/${id}/activate`).then((res) => res.data);
+}
