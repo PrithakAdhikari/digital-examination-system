@@ -12,6 +12,14 @@ import User from "./models/User.js";
 import authRouter from "./routes/authRoutes.js";
 import sequelizeSqlite from "./sqliteDatabase.js";
 import ProxySetting from "./models/ProxySetting.js";
+import Question from "./models/Question.js";
+import { 
+    getExaminations, 
+    selectExamination, 
+    initializeCronJobs, 
+    getLocalQuestions,
+    removeExamination 
+} from "./controllers/examinationController.js";
 
 import http from "http";
 
@@ -53,6 +61,12 @@ app.get("/", (req, res) => {
 
 app.use("/auth", authRouter);
 
+// Examination Routes
+app.get("/examinations", getExaminations);
+app.post("/select-examination", selectExamination);
+app.post("/remove-examination", removeExamination);
+app.get("/questions", getLocalQuestions);
+
 // Protected route example
 app.get(
   "/auth/profile",
@@ -84,6 +98,9 @@ const runApp = async () => {
     console.log("SQLite database connected successfully.");
     await sequelizeSqlite.sync({ alter: true });
     console.log("SQLite database synced.");
+
+    // Initialize cron jobs on startup
+    await initializeCronJobs();
 
     server.listen(PORT, "0.0.0.0", () => {
       console.log(`Server is running on http://localhost:${PORT}`);

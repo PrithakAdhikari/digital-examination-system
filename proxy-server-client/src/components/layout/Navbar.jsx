@@ -4,7 +4,7 @@ import { useTheme } from "../../context/ThemeContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { Server, LogOut, Moon, Sun, User } from "lucide-react";
 
-export default function Navbar() {
+export default function Navbar({ onMenuClick }) {
   const { theme, toggleTheme } = useTheme();
   const { clearToken } = useAuth();
   const navigate = useNavigate();
@@ -31,6 +31,15 @@ export default function Navbar() {
     <div className="sticky top-0 z-40 w-full px-4 md:px-8 py-3 md:py-5 animate-fade-in">
       <div className="navbar glass-effect rounded-2xl md:rounded-3xl border border-white/10 shadow-2xl px-4 md:px-6">
         <div className="navbar-start flex items-center gap-4">
+          <button 
+            className="btn btn-ghost btn-circle" 
+            onClick={onMenuClick}
+            aria-label="Open sidebar"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
           <Link to="/" className="flex items-center gap-3 active:scale-95 transition-transform group">
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-content shadow-lg shadow-primary/20 group-hover:rotate-12 transition-transform">
               <Server className="w-6 h-6" />

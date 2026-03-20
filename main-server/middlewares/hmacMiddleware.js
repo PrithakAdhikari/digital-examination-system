@@ -36,7 +36,8 @@ export const verifyHmacSignature = async (req, res, next) => {
         // Reconstruct the message: method + path + timestamp + body
         // Body should be stringified if it's an object
         const body = req.body && Object.keys(req.body).length > 0 ? JSON.stringify(req.body) : "";
-        const message = `${req.method}${req.path}${timestamp}${body}`;
+        const fullPath = req.originalUrl.split("?")[0];
+        const message = `${req.method}${fullPath}${timestamp}${body}`;
 
         // Compute HMAC
         const computedSignature = crypto

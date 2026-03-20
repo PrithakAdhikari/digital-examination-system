@@ -11,3 +11,19 @@ export function registerWithMainServer() {
 export function getRegistrationStatus() {
     return axiosInstance.get("/auth/registration-status").then((res) => res.data);
 }
+
+export function getExaminations() {
+    return axiosInstance.get("/examinations").then((res) => res.data);
+}
+
+export function selectExamination({ examId, startTime }) {
+    return axiosInstance.post("/select-examination", { examId, startTime }).then((res) => res.data);
+}
+
+export function removeExamination() {
+    return axiosInstance.post("/remove-examination").then((res) => res.data);
+}
+
+export function getQuestions() {
+    return axiosInstance.get("/questions").then((res) => res.data);
+}

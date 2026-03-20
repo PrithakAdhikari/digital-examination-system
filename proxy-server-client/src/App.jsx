@@ -6,6 +6,8 @@ import { ProtectedRoute } from "./components/ProtectedRoute.jsx";
 import ProxyLayout from "./components/layout/ProxyLayout.jsx";
 import RegistrationPage from "./pages/RegistrationPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
+import ExaminationsPage from "./pages/ExaminationsPage.jsx";
+import MonitorPage from "./pages/MonitorPage.jsx";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +40,8 @@ function App() {
               >
                 <Route index element={<Navigate to="/registration" replace />} />
                 <Route path="registration" element={<RegistrationPage />} />
+                <Route path="examinations" element={<ExaminationsPage />} />
+                <Route path="monitor" element={<MonitorPage />} />
                 {/* Future protected routes can go here */}
               </Route>
 

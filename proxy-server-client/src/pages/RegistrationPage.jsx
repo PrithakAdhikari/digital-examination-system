@@ -91,15 +91,6 @@ export default function RegistrationPage() {
                     </div>
                 </div>
             </div>
-            <button 
-                className="btn btn-primary w-full rounded-2xl h-14 font-bold text-lg"
-                onClick={() => {
-                    // Logic to navigate to dashboard
-                    console.log("Navigating to dashboard...");
-                }}
-            >
-                Continue to Dashboard
-            </button>
           </div>
         ) : (
           <div className="glass-card shadow-2xl border border-slate-200/50 dark:border-slate-800/50 overflow-hidden">

@@ -47,7 +47,7 @@ export const registerWithMainServer = async (req, res) => {
         const provision_key = decrypt(setting.provision_key);
         const main_server_url = setting.main_server_url;
 
-        const response = await axios.post(`${main_server_url}/register-exam-center`, {
+        const response = await axios.post(`${main_server_url}/proxy/register-exam-center`, {
             exam_center_id: setting.exam_center_id,
             provision_key,
         });
@@ -73,7 +73,10 @@ export const getRegistrationStatus = async (req, res) => {
     try {
         const setting = await ProxySetting.findOne();
         const is_registered = !!(setting && setting.secret_key);
-        res.status(200).json({ is_registered });
+        res.status(200).json({ 
+            is_registered, 
+            selected_examination_id: setting?.selected_examination_id || null 
+        });
     } catch (err) {
         res.status(500).json({ error: "Error checking status: " + err.message });
     }

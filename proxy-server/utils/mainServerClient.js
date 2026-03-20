@@ -15,6 +15,9 @@ mainServerClient.interceptors.request.use(async (config) => {
         const secretKey = decrypt(setting.secret_key);
         const centerId = setting.exam_center_id;
         const timestamp = Date.now().toString();
+
+        config.baseURL = 'http://localhost:8000/';
+
         const method = config.method.toUpperCase();
         const path = new URL(config.url, config.baseURL).pathname;
         const body = config.data ? JSON.stringify(config.data) : "";
@@ -28,10 +31,6 @@ mainServerClient.interceptors.request.use(async (config) => {
         config.headers["x-exam-center-id"] = centerId;
         config.headers["x-hmac-signature"] = signature;
         config.headers["x-timestamp"] = timestamp;
-
-        if (!config.baseURL && setting.main_server_url) {
-            config.baseURL = setting.main_server_url;
-        }
 
         return config;
     } catch (err) {
