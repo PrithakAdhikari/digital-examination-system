@@ -188,7 +188,7 @@ export const profile = async (req, res) => {
   try {
     const [user] = await sequelize.query(
       `
-      SELECT id, username, email_txt, firstname_txt, lastname_txt, role, phone_num_txt, stud_center_fk_id, stud_batch_year, stud_exam_symbol_no, stud_exam_reg_no, "profilePicture", "profilePicturePublicId"
+      SELECT id, username, email_txt, firstname_txt, lastname_txt, role, phone_num_txt, center_fk_id, stud_batch_year, stud_exam_symbol_no, stud_exam_reg_no, "profilePicture", "profilePicturePublicId"
 	    FROM public."User" WHERE id = :userId;
       `,
       {
