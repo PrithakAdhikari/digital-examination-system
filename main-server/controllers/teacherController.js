@@ -729,16 +729,17 @@ export const getAllStudentInTeacherCenter = async (req, res) => {
 
 const teacherAssignedExamsCte = `
     WITH assigned_exams AS (
-        SELECT DISTINCT es.exam_fk_id AS exam_id
-        FROM public."ExaminationSubject" es
-        WHERE es.exam_setter_user_fk_id = :userId
-
-        UNION
-
-        SELECT DISTINCT es.exam_fk_id AS exam_id
-        FROM public."SubjectPaper" sp
-        JOIN public."ExaminationSubject" es ON sp.subject_fk_id = es.id
-        WHERE sp.paper_checkers_list @> :checkerUser::jsonb
+    SELECT es.exam_fk_id AS exam_id,
+           BOOL_OR(es.exam_setter_user_fk_id = :userId) AS is_setter,
+           BOOL_OR(sp.paper_checkers_list @> :checkerUser::jsonb) AS is_checker
+    FROM public."ExaminationSubject" es
+    LEFT JOIN public."SubjectPaper" sp 
+        ON sp.subject_fk_id = es.id
+    GROUP BY es.exam_fk_id
+    HAVING 
+        BOOL_OR(es.exam_setter_user_fk_id = :userId)
+        OR
+        BOOL_OR(sp.paper_checkers_list @> :checkerUser::jsonb)
     )
 `;
 
@@ -799,27 +800,15 @@ export const getTeacherUpcomingExaminations = async (req, res) => {
                 e."exam_startTime_ts" AS "examStartTime",
                 e."result_time_ts" AS "resultTime",
                 CASE
-                    WHEN EXISTS (
-                        SELECT 1 FROM public."ExaminationSubject" es
-                        WHERE es.exam_fk_id = e.id AND es.exam_setter_user_fk_id = :userId
-                    )
-                    AND EXISTS (
-                        SELECT 1
-                        FROM public."SubjectPaper" sp
-                        JOIN public."ExaminationSubject" es ON sp.subject_fk_id = es.id
-                        WHERE es.exam_fk_id = e.id AND sp.paper_checkers_list @> :checkerUser::jsonb
-                    ) THEN 'SETTER_AND_CHECKER'
-                    WHEN EXISTS (
-                        SELECT 1 FROM public."ExaminationSubject" es
-                        WHERE es.exam_fk_id = e.id AND es.exam_setter_user_fk_id = :userId
-                    ) THEN 'SETTER'
+                    WHEN ae.is_setter AND ae.is_checker THEN 'SETTER_AND_CHECKER'
+                    WHEN ae.is_setter THEN 'SETTER'
                     ELSE 'CHECKER'
                 END AS "assignedAs"
-             FROM assigned_exams ae
-             JOIN public.examinations e ON e.id = ae.exam_id
-             WHERE e."exam_startTime_ts" > :now
-             ORDER BY e."exam_startTime_ts" ASC
-             LIMIT :limit`,
+            FROM assigned_exams ae
+            JOIN public.examinations e ON e.id = ae.exam_id
+            WHERE e."exam_startTime_ts" > :now
+            ORDER BY e."exam_startTime_ts" ASC
+            LIMIT :limit`,
             {
                 replacements: { userId, checkerUser, now, limit },
                 type: Sequelize.QueryTypes.SELECT,
