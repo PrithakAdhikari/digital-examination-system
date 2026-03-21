@@ -10,6 +10,23 @@ import ExaminationsPage from "./pages/ExaminationsPage.jsx";
 import ExaminationFormPage from "./pages/ExaminationFormPage.jsx";
 import ExamCentersPage from "./pages/ExamCentersPage.jsx";
 import UserPage from "./pages/UserPage.jsx";
+import TeacherLayout from "./components/layout/TeacherLayout.jsx";
+import TeacherDashboardPage from "./pages/TeacherDashboardPage.jsx";
+
+function RootRedirect() {
+  const storedUser = localStorage.getItem("user");
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      if (user.role === "TEACHER") {
+        return <Navigate to="/teacher" replace />;
+      }
+    } catch (e) {
+      console.error("Failed to parse user data", e);
+    }
+  }
+  return <Navigate to="/admin" replace />;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,8 +61,21 @@ function App() {
                 <Route path="centers" element={<ExamCentersPage />} />
                 <Route path="users" element={<UserPage />} />
               </Route>
-              <Route path="/" element={<Navigate to="/admin" replace />} />
-              <Route path="*" element={<Navigate to="/admin" replace />} />
+
+              {/* Teacher Routes */}
+              <Route
+                path="/teacher"
+                element={
+                  <ProtectedRoute>
+                    <TeacherLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<TeacherDashboardPage />} />
+              </Route>
+
+              <Route path="/" element={<RootRedirect />} />
+              <Route path="*" element={<RootRedirect />} />
             </Routes>
           </BrowserRouter>
         </ThemeProvider>

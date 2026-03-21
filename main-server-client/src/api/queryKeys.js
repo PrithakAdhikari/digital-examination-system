@@ -11,3 +11,12 @@ export const adminKeys = {
   centers: (params) => [...adminKeys.all, "centers", params ?? {}],
   users: (params) => [...adminKeys.all, "users", params ?? {}],
 };
+
+export const teacherKeys = {
+  all: ["teacher"],
+  dashboard: () => [...teacherKeys.all, "dashboard"],
+  examSummary: () => [...teacherKeys.dashboard(), "exam-summary"],
+  upcomingExaminations: () => [...teacherKeys.dashboard(), "upcoming-examinations"],
+  topStudents: () => [...teacherKeys.dashboard(), "top-students"],
+  averageResultsOverExaminations: () => [...teacherKeys.dashboard(), "average-results-over-examinations"],
+};
