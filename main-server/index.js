@@ -16,6 +16,7 @@ import PaperQuestion from "./models/PaperQuestion.js";
 import StudentAnswerMarks from "./models/StudentAnswerMarks.js";
 import StudentQuestionAnswer from "./models/StudentQuestionAnswer.js";
 import SubjectPaper from "./models/SubjectPaper.js";
+import SubjectStudentCheckerAssignment from "./models/SubjectStudentCheckerAssignment.js";
 import Token from "./models/Token.js";
 
 import authRouter from "./routes/authRoutes.js";
