@@ -12,7 +12,7 @@ import User from "./models/User.js";
 import authRouter from "./routes/authRoutes.js";
 import sequelizeSqlite from "./sqliteDatabase.js";
 import ProxySetting from "./models/ProxySetting.js";
-import Question from "./models/Question.js";
+import StudentAnswer from "./models/StudentAnswer.js";
 import { 
     getExaminations, 
     selectExamination, 
@@ -20,6 +20,7 @@ import {
     getLocalQuestions,
     removeExamination 
 } from "./controllers/examinationController.js";
+import { submitAnswer, syncAnswersToMain } from "./controllers/answerController.js";
 
 import http from "http";
 
@@ -66,6 +67,10 @@ app.get("/examinations", getExaminations);
 app.post("/select-examination", selectExamination);
 app.post("/remove-examination", removeExamination);
 app.get("/questions", getLocalQuestions);
+
+// Answer Routes
+app.post("/submit-answer", passport.authenticate("jwt", { session: false }), submitAnswer);
+app.post("/sync-answers", syncAnswersToMain);
 
 // Protected route example
 app.get(

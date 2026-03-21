@@ -22,17 +22,19 @@ const activeItems = [
       </svg>
     ),
   },
-];
-
-const placeholderItems = [
   {
-    label: "Answer",
+    to: "/teacher/answers",
+    end: false,
+    label: "Answers",
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h6l5 5v11a2 2 0 01-2 2z" />
       </svg>
     ),
   },
+];
+
+const placeholderItems = [
   {
     label: "Students",
     icon: (

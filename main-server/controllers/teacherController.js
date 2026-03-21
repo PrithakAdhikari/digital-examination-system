@@ -262,7 +262,8 @@ export const getAllAssignedPapersToCheck = async (req, res) => {
 
 /**
  * 2. getAllStudentsAnswersToCheck
- * Use subject_fk_id to fetch the list of all the assigned student answers to be checked by currently logged in user.
+ * Use optional subject_fk_id to fetch the list of all the assigned student answers to be checked by currently logged in user.
+ * If subject_fk_id is not provided, returns all submissions for all subjects assigned to the teacher.
  */
 export const getAllStudentsAnswersToCheck = async (req, res) => {
     try {
@@ -273,25 +274,31 @@ export const getAllStudentsAnswersToCheck = async (req, res) => {
             `
             SELECT 
                 ssca.student_user_fk_id,
-                u.firstname_txt,
-                u.lastname_txt,
-                u.username,
+                ssca.subject_fk_id,
+                es.subject_name_txt,
+                e.exam_name_txt,
+                sp.exam_batch_year,
                 COUNT(sqa.id) AS "answers_count",
                 MAX(sqa."createdAt_ts") AS "last_submitted_at"
             FROM public."SubjectStudentCheckerAssignment" ssca
             JOIN public."User" u ON u.id = ssca.student_user_fk_id
-            LEFT JOIN public."StudentQuestionAnswer" sqa ON sqa.stud_user_fk_id = ssca.student_user_fk_id
-            LEFT JOIN public."PaperQuestion" pq ON pq.id = sqa.exam_question_fk_id
-            LEFT JOIN public."SubjectPaper" sp ON sp.id = pq.paper_fk_id
-            WHERE ssca.subject_fk_id = :subject_fk_id
-              AND ssca.checker_user_fk_id = :userId
-              AND (sp.subject_fk_id = :subject_fk_id OR sp.subject_fk_id IS NULL)
-            GROUP BY ssca.student_user_fk_id, u.firstname_txt, u.lastname_txt, u.username
-            ORDER BY MAX(sqa."createdAt_ts") DESC NULLS LAST, u.firstname_txt ASC;
+            JOIN public."ExaminationSubject" es ON ssca.subject_fk_id = es.id
+            JOIN public.examinations e ON es.exam_fk_id = e.id
+            LEFT JOIN public."SubjectPaper" sp ON sp.subject_fk_id = ssca.subject_fk_id
+            LEFT JOIN public."StudentQuestionAnswer" sqa 
+                ON sqa.stud_user_fk_id = ssca.student_user_fk_id
+                AND EXISTS (
+                    SELECT 1 FROM public."PaperQuestion" pq2 
+                    WHERE pq2.paper_fk_id = sp.id AND pq2.id = sqa.exam_question_fk_id
+                )
+            WHERE ssca.checker_user_fk_id = :userId
+              AND (:subject_fk_id_val IS NULL OR ssca.subject_fk_id = :subject_fk_id_val)
+            GROUP BY ssca.student_user_fk_id, ssca.subject_fk_id, es.subject_name_txt, e.exam_name_txt, sp.exam_batch_year
+            ORDER BY MAX(sqa."createdAt_ts") DESC NULLS LAST;
             `,
             {
                 replacements: {
-                    subject_fk_id,
+                    subject_fk_id_val: subject_fk_id || null,
                     userId,
                 },
                 type: Sequelize.QueryTypes.SELECT,
@@ -299,7 +306,7 @@ export const getAllStudentsAnswersToCheck = async (req, res) => {
         );
 
         res.status(200).json({
-            message: "Assigned students fetched successfully",
+            message: "Assigned submissions fetched successfully",
             data: assignedStudents,
         });
     } catch (err) {
@@ -423,10 +430,6 @@ export const getStudentAnswersBySubject = async (req, res) => {
         const answers = await sequelize.query(
             `
             SELECT
-                sqa.id AS "answer_id",
-                sqa.stud_user_fk_id,
-                sqa.stud_answer,
-                sqa."createdAt_ts" AS "submitted_at",
                 pq.id AS "question_id",
                 pq.question_type,
                 pq.question_txt,
@@ -435,13 +438,21 @@ export const getStudentAnswersBySubject = async (req, res) => {
                 pq.option3,
                 pq.option4,
                 pq.correct_option,
-                eat.aes_256_key AS "encrypted_paper_key"
-            FROM public."StudentQuestionAnswer" sqa
-            JOIN public."PaperQuestion" pq ON sqa.exam_question_fk_id = pq.id
+                pq.full_marks,
+                sqa.id AS "answer_id",
+                sqa.stud_answer,
+                sqa."createdAt_ts" AS "submitted_at",
+                eat.aes_256_key AS "encrypted_paper_key",
+                sam.marks_obtained,
+                sam.feedback
+            FROM public."PaperQuestion" pq
             JOIN public."SubjectPaper" sp ON pq.paper_fk_id = sp.id
+            LEFT JOIN public."StudentQuestionAnswer" sqa 
+                ON sqa.exam_question_fk_id = pq.id 
+                AND sqa.stud_user_fk_id = :student_user_fk_id
             LEFT JOIN public."ExamAnswerToken" eat ON pq.id = eat.question_fk_id
+            LEFT JOIN public."StudentAnswerMarks" sam ON sam.stud_answer_fk_id = sqa.id
             WHERE sp.subject_fk_id = :subject_fk_id
-              AND sqa.stud_user_fk_id = :student_user_fk_id
             ORDER BY pq.id ASC;
             `,
             {
@@ -484,7 +495,10 @@ export const getStudentAnswersBySubject = async (req, res) => {
                 option3: row.option3 ? decrypt(row.option3, paperKey) : null,
                 option4: row.option4 ? decrypt(row.option4, paperKey) : null,
                 correct_option: row.correct_option ? Number(decrypt(row.correct_option, paperKey)) : null,
+                full_marks: row.full_marks,
                 stud_answer: studAnswer,
+                marks_obtained: row.marks_obtained,
+                feedback: row.feedback,
                 encrypted_paper_key: undefined,
             };
         });
@@ -581,6 +595,94 @@ export const assignSubjectMarks = async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ error: "Error assigning marks: " + err.message });
+    }
+};
+
+/**
+ * 4b. POST assignQuestionMark
+ * Assign marks to a specific question answer.
+ */
+export const assignQuestionMark = async (req, res) => {
+    const questionMarkSchema = Joi.object({
+        answer_id: Joi.number().required(),
+        marks_obtained: Joi.number().required(),
+        feedback: Joi.string().allow(null, "").optional(),
+    });
+
+    const { error, value } = questionMarkSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
+    try {
+        const userId = req.user.id;
+        const { answer_id, marks_obtained, feedback } = value;
+
+        // Verify the answer exists and the teacher is assigned
+        const [answer] = await sequelize.query(
+            `
+            SELECT 
+                sqa.id, 
+                sqa.stud_user_fk_id, 
+                sp.subject_fk_id,
+                pq.full_marks
+            FROM public."StudentQuestionAnswer" sqa
+            JOIN public."PaperQuestion" pq ON sqa.exam_question_fk_id = pq.id
+            JOIN public."SubjectPaper" sp ON pq.paper_fk_id = sp.id
+            WHERE sqa.id = :answer_id
+            LIMIT 1;
+            `,
+            {
+                replacements: { answer_id },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        if (!answer) {
+            return res.status(404).json({ error: "Answer not found." });
+        }
+
+        if (marks_obtained > answer.full_marks) {
+            return res.status(400).json({ error: `Marks obtained (${marks_obtained}) cannot exceed full marks (${answer.full_marks}).` });
+        }
+
+        const assigned = await SubjectStudentCheckerAssignment.findOne({
+            where: {
+                subject_fk_id: answer.subject_fk_id,
+                student_user_fk_id: answer.stud_user_fk_id,
+                checker_user_fk_id: userId,
+            },
+        });
+
+        if (!assigned) {
+            return res.status(403).json({ error: "Forbidden: You are not assigned to grade this submission." });
+        }
+
+        // Create or update marks for this specific answer
+        const [marks, created] = await StudentAnswerMarks.findOrCreate({
+            where: {
+                stud_answer_fk_id: answer_id
+            },
+            defaults: {
+                stud_user_fk_id: answer.stud_user_fk_id,
+                marks_obtained,
+                feedback,
+                subject_fk_id: answer.subject_fk_id
+            }
+        });
+
+        if (!created) {
+            marks.marks_obtained = marks_obtained;
+            marks.feedback = feedback;
+            await marks.save();
+        }
+
+        res.status(200).json({
+            message: created ? "Question marks assigned" : "Question marks updated",
+            data: marks
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error assigning question marks: " + err.message });
     }
 };
 

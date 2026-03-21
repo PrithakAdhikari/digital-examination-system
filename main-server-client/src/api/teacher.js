@@ -31,3 +31,25 @@ export function getAssignedQuestionsToWrite() {
 export function createTeacherQuestionPaper(payload) {
   return axiosInstance.post(`${teacher}/create-question`, payload).then((res) => res.data?.data ?? res.data);
 }
+
+export function getAllAssignedPapersToCheck() {
+  return axiosInstance.get(`${teacher}/assigned-papers-to-check`).then((res) => res.data?.data ?? res.data);
+}
+
+export function getStudentsToGrade(subjectId) {
+  return axiosInstance.get(`${teacher}/student-answers-to-check/${subjectId}`).then((res) => res.data?.data ?? res.data);
+}
+
+export function getAllSubmissions() {
+  return axiosInstance.get(`${teacher}/all-student-answers-to-check`).then((res) => res.data?.data ?? res.data);
+}
+
+export function getStudentSubmissionDetail(subjectId, studentId) {
+  return axiosInstance
+    .get(`${teacher}/student-answers-to-check/${subjectId}/student/${studentId}`)
+    .then((res) => res.data?.data ?? res.data);
+}
+
+export function assignQuestionMark(payload) {
+  return axiosInstance.post(`${teacher}/assign-question-mark`, payload).then((res) => res.data?.data ?? res.data);
+}

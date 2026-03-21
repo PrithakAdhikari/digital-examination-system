@@ -36,3 +36,46 @@ export function useAssignedQuestionsToWrite() {
     queryFn: teacherApi.getAssignedQuestionsToWrite,
   });
 }
+
+export function useAssignedPapersToCheck() {
+  return useQuery({
+    queryKey: teacherKeys.assignedPapersToCheck(),
+    queryFn: teacherApi.getAllAssignedPapersToCheck,
+  });
+}
+
+export function useAllSubmissions() {
+  return useQuery({
+    queryKey: teacherKeys.allSubmissions(),
+    queryFn: teacherApi.getAllSubmissions,
+  });
+}
+
+export function useStudentsToGrade(subjectId) {
+  return useQuery({
+    queryKey: teacherKeys.studentsToGrade(subjectId),
+    queryFn: () => teacherApi.getStudentsToGrade(subjectId),
+    enabled: !!subjectId,
+  });
+}
+
+export function useStudentSubmission(subjectId, studentId) {
+  return useQuery({
+    queryKey: teacherKeys.studentSubmission(subjectId, studentId),
+    queryFn: () => teacherApi.getStudentSubmissionDetail(subjectId, studentId),
+    enabled: !!subjectId && !!studentId,
+  });
+}
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+export function useAssignQuestionMark() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: teacherApi.assignQuestionMark,
+    onSuccess: (_, variables) => {
+      // Logic for invalidating specific submission/student lists can be added here
+      queryClient.invalidateQueries({ queryKey: teacherKeys.all });
+    },
+  });
+}

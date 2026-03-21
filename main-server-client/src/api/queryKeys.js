@@ -22,4 +22,8 @@ export const teacherKeys = {
   averageResultsOverExaminations: () => [...teacherKeys.dashboard(), "average-results-over-examinations"],
   questions: () => [...teacherKeys.all, "questions"],
   assignedQuestionsToWrite: () => [...teacherKeys.questions(), "assigned-to-write"],
+  assignedPapersToCheck: () => [...teacherKeys.all, "assigned-papers-to-check"],
+  allSubmissions: () => [...teacherKeys.all, "all-submissions"],
+  studentsToGrade: (subjectId) => [...teacherKeys.all, "students-to-grade", subjectId],
+  studentSubmission: (subjectId, studentId) => [...teacherKeys.all, "submission", subjectId, studentId],
 };

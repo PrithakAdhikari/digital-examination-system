@@ -14,6 +14,9 @@ import TeacherLayout from "./components/layout/TeacherLayout.jsx";
 import TeacherDashboardPage from "./pages/TeacherDashboardPage.jsx";
 import TeacherQuestionsPage from "./pages/TeacherQuestionsPage.jsx";
 import TeacherQuestionCreatePage from "./pages/TeacherQuestionCreatePage.jsx";
+import TeacherAnswersPage from "./pages/TeacherAnswersPage.jsx";
+import TeacherSubmissionsPage from "./pages/TeacherSubmissionsPage.jsx";
+import TeacherGradingPage from "./pages/TeacherGradingPage.jsx";
 import AnswersPage from "./pages/AnswersPage.jsx";
 
 function RootRedirect() {
@@ -78,6 +81,9 @@ function App() {
                 <Route index element={<TeacherDashboardPage />} />
                 <Route path="questions" element={<TeacherQuestionsPage />} />
                 <Route path="questions/create/:subjectId" element={<TeacherQuestionCreatePage />} />
+                <Route path="answers" element={<TeacherAnswersPage />} />
+                <Route path="answers/:subjectId" element={<TeacherSubmissionsPage />} />
+                <Route path="grading/:subjectId/:studentId" element={<TeacherGradingPage />} />
               </Route>
 
               <Route path="/" element={<RootRedirect />} />
