@@ -10,6 +10,7 @@ import ExamAnswerToken from "../models/ExamAnswerToken.js";
 import sequelize from "../database.js";
 import { Sequelize } from "sequelize";
 import User from "../models/User.js";
+import SubjectStudentCheckerAssignment from "../models/SubjectStudentCheckerAssignment.js";
 
 // --- Helper Functions (from SubjectPaper) ---
 
@@ -102,6 +103,12 @@ const updateUserSchema = Joi.object({
     center_fk_id: Joi.number().allow(null),
     is_active: Joi.boolean()
 }).unknown(true); // Allows extra fields like batch_year without error
+
+const assignStudentsSchema = Joi.object({
+    subject_fk_id: Joi.number().required(),
+    checker_user_fk_id: Joi.number().required(),
+    student_user_fk_ids: Joi.array().items(Joi.number()).min(1).required(),
+});
 
 // --- Examination Controllers ---
 
@@ -711,6 +718,135 @@ export const deleteCenter = async (req, res) => {
 // --- Subject Paper Controllers ---
 
 
+
+// --- Student Assignment Controllers ---
+
+/**
+ * POST assignStudentsForChecking
+ * Assign a list of students to a teacher for one subject.
+ */
+export const assignStudentsForChecking = async (req, res) => {
+    const { error, value } = assignStudentsSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const t = await sequelize.transaction();
+    try {
+        const { subject_fk_id, checker_user_fk_id, student_user_fk_ids } = value;
+
+        const payload = student_user_fk_ids.map((studentUserId) => ({
+            subject_fk_id,
+            student_user_fk_id: studentUserId,
+            checker_user_fk_id,
+        }));
+
+        await SubjectStudentCheckerAssignment.bulkCreate(payload, {
+            transaction: t,
+            updateOnDuplicate: ["checker_user_fk_id", "updatedAt_ts"],
+        });
+
+        await t.commit();
+
+        res.status(200).json({
+            message: "Students assigned for checking successfully",
+            data: {
+                subject_fk_id,
+                checker_user_fk_id,
+                assigned_count: student_user_fk_ids.length,
+            },
+        });
+    } catch (err) {
+        await t.rollback();
+        res.status(500).json({ error: "Error assigning students for checking: " + err.message });
+    }
+};
+
+/**
+ * POST assignBulkStudentsForChecking
+ * Passes on 1 checker_user_fk_id and multiple student_user_fk_id and does BulkCreate.
+ */
+export const assignBulkStudentsForChecking = async (req, res) => {
+    const { error, value } = assignStudentsSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const t = await sequelize.transaction();
+    try {
+        const { subject_fk_id, checker_user_fk_id, student_user_fk_ids } = value;
+
+        const payload = student_user_fk_ids.map((studentUserId) => ({
+            subject_fk_id,
+            student_user_fk_id: studentUserId,
+            checker_user_fk_id,
+        }));
+
+        await SubjectStudentCheckerAssignment.bulkCreate(payload, {
+            transaction: t,
+            updateOnDuplicate: ["checker_user_fk_id", "updatedAt_ts"],
+        });
+
+        await t.commit();
+
+        res.status(200).json({
+            message: "Bulk students assigned for checking successfully",
+            data: {
+                subject_fk_id,
+                checker_user_fk_id,
+                assigned_count: student_user_fk_ids.length,
+            },
+        });
+    } catch (err) {
+        await t.rollback();
+        res.status(500).json({ error: "Error bulk assigning students for checking: " + err.message });
+    }
+};
+
+/**
+ * GET getAnswersBySubject
+ * Fetch list of students who have submitted answers for a given subject.
+ * Returns unique students along with their assignment status.
+ */
+export const getAnswersBySubject = async (req, res) => {
+    try {
+        const { subject_fk_id } = req.params;
+
+        const students = await sequelize.query(
+            `
+            SELECT 
+                u.id AS "student_id",
+                (u.firstname_txt || ' ' || u.lastname_txt) AS "full_name",
+                u.username,
+                MAX(sqa."createdAt_ts") AS "submitted_at",
+                ssca.checker_user_fk_id,
+                (cu.firstname_txt || ' ' || cu.lastname_txt) AS "checker_name"
+            FROM public."User" u
+            JOIN public."StudentQuestionAnswer" sqa ON u.id = sqa.stud_user_fk_id
+            JOIN public."PaperQuestion" pq ON pq.id = sqa.exam_question_fk_id
+            JOIN public."SubjectPaper" sp ON sp.id = pq.paper_fk_id
+            LEFT JOIN public."SubjectStudentCheckerAssignment" ssca 
+                ON ssca.student_user_fk_id = u.id 
+                AND ssca.subject_fk_id = sp.subject_fk_id
+            LEFT JOIN public."User" cu ON cu.id = ssca.checker_user_fk_id
+            WHERE sp.subject_fk_id = :subject_fk_id
+            GROUP BY u.id, u.firstname_txt, u.lastname_txt, u.username, ssca.checker_user_fk_id, cu.firstname_txt, cu.lastname_txt
+            ORDER BY MAX(sqa."createdAt_ts") DESC;
+            `,
+            {
+                replacements: { subject_fk_id },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        res.status(200).json({
+            message: "Students with answers fetched successfully",
+            data: students
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching students with answers: " + err.message });
+    }
+};
 
 export const getAllSubjectPapers = async (req, res) => {
     try {

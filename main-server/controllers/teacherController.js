@@ -54,16 +54,13 @@ const subjectPaperSchema = Joi.object({
                 option2: Joi.string().allow(null, "").optional(),
                 option3: Joi.string().allow(null, "").optional(),
                 option4: Joi.string().allow(null, "").optional(),
+                full_marks: Joi.number().required(),
             })
         )
         .min(1)
         .required(),
 });
 
-const assignStudentsSchema = Joi.object({
-    subject_fk_id: Joi.number().required(),
-    student_user_fk_ids: Joi.array().items(Joi.number()).min(1).required(),
-});
 
 // --- Teacher Controllers ---
 
@@ -174,6 +171,7 @@ export const createQuestion = async (req, res) => {
                 option2: q.option2 ? encrypt(q.option2, paperKey) : null,
                 option3: q.option3 ? encrypt(q.option3, paperKey) : null,
                 option4: q.option4 ? encrypt(q.option4, paperKey) : null,
+                full_marks: q.full_marks,
             };
 
             const question = await PaperQuestion.create(encryptedData, { transaction: t });
@@ -203,46 +201,6 @@ export const createQuestion = async (req, res) => {
     }
 };
 
-/**
- * POST assignStudentsForChecking
- * Assign a list of students to the currently logged-in teacher for one subject.
- */
-export const assignStudentsForChecking = async (req, res) => {
-    const { error, value } = assignStudentsSchema.validate(req.body);
-    if (error) {
-        return res.status(400).json({ error: error.details[0].message });
-    }
-
-    const t = await sequelize.transaction();
-    try {
-        const checkerUserId = parseInt(req.user.id, 10);
-
-        const payload = value.student_user_fk_ids.map((studentUserId) => ({
-            subject_fk_id: value.subject_fk_id,
-            student_user_fk_id: studentUserId,
-            checker_user_fk_id: checkerUserId,
-        }));
-
-        await SubjectStudentCheckerAssignment.bulkCreate(payload, {
-            transaction: t,
-            updateOnDuplicate: ["checker_user_fk_id", "updatedAt_ts"],
-        });
-
-        await t.commit();
-
-        res.status(200).json({
-            message: "Students assigned for checking successfully",
-            data: {
-                subject_fk_id: value.subject_fk_id,
-                checker_user_fk_id: checkerUserId,
-                assigned_count: value.student_user_fk_ids.length,
-            },
-        });
-    } catch (err) {
-        await t.rollback();
-        res.status(500).json({ error: "Error assigning students for checking: " + err.message });
-    }
-};
 
 /**
  * 1. getAllAssignedPapersToCheck

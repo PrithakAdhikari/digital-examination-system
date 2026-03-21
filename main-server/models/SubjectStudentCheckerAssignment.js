@@ -36,9 +36,11 @@ const SubjectStudentCheckerAssignment = sequelize.define(
       {
         unique: true,
         fields: ["subject_fk_id", "student_user_fk_id"],
+        name: "subject_student_unique_index",
       },
       {
         fields: ["checker_user_fk_id", "subject_fk_id"],
+        name: "checker_subject_index",
       },
     ],
   }

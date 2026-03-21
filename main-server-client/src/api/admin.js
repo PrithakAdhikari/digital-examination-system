@@ -100,3 +100,12 @@ export function deactivateUser(id) {
 export function activateUser(id) {
   return axiosInstance.patch(`${admin}/users/${id}/activate`).then((res) => res.data);
 }
+
+// Student Assignment
+export function getAnswersBySubject(subjectId) {
+  return axiosInstance.get(`${admin}/answers/subject/${subjectId}`).then((res) => res.data?.data ?? []);
+}
+
+export function assignBulkStudents(payload) {
+  return axiosInstance.post(`${admin}/assign-bulk-students`, payload).then((res) => res.data);
+}

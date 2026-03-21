@@ -25,6 +25,9 @@ import {
   getUserById,
   updateUser,
   deleteUser,
+  assignStudentsForChecking,
+  assignBulkStudentsForChecking,
+  getAnswersBySubject,
   deactivateUser,
   activateUser
 } from "../controllers/adminController.js";
@@ -71,5 +74,10 @@ adminRouter.delete("/users/:id", verifyLoggedIn, verifyAdmin, deleteUser);
 // Status Management (Soft Delete)
 adminRouter.patch("/users/:id/deactivate", verifyLoggedIn, verifyAdmin, deactivateUser);
 adminRouter.patch("/users/:id/activate", verifyLoggedIn, verifyAdmin, activateUser);
+
+// Student Assignment
+adminRouter.post("/assign-students-for-checking", verifyLoggedIn, verifyAdmin, assignStudentsForChecking);
+adminRouter.post("/assign-bulk-students", verifyLoggedIn, verifyAdmin, assignBulkStudentsForChecking);
+adminRouter.get("/answers/subject/:subject_fk_id", verifyLoggedIn, verifyAdmin, getAnswersBySubject);
 
 export default adminRouter;

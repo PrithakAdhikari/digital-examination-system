@@ -10,6 +10,7 @@ export const adminKeys = {
   examination: (id) => [...adminKeys.all, "examination", id],
   centers: (params) => [...adminKeys.all, "centers", params ?? {}],
   users: (params) => [...adminKeys.all, "users", params ?? {}],
+  answersBySubject: (subjectId) => [...adminKeys.all, "answersBySubject", subjectId],
 };
 
 export const teacherKeys = {

@@ -12,6 +12,7 @@ import ExamCentersPage from "./pages/ExamCentersPage.jsx";
 import UserPage from "./pages/UserPage.jsx";
 import TeacherLayout from "./components/layout/TeacherLayout.jsx";
 import TeacherDashboardPage from "./pages/TeacherDashboardPage.jsx";
+import AnswersPage from "./pages/AnswersPage.jsx";
 
 function RootRedirect() {
   const storedUser = localStorage.getItem("user");
@@ -60,6 +61,7 @@ function App() {
                 <Route path="examinations/edit/:id" element={<ExaminationFormPage />} />
                 <Route path="centers" element={<ExamCentersPage />} />
                 <Route path="users" element={<UserPage />} />
+                <Route path="answers" element={<AnswersPage />} />
               </Route>
 
               {/* Teacher Routes */}

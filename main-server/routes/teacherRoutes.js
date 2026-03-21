@@ -2,7 +2,6 @@ import express from "express";
 import {
     getAllQuestionsToSet,
     createQuestion,
-    assignStudentsForChecking,
     getAllAssignedPapersToCheck,
     getAllStudentsAnswersToCheck,
     getStudentAnswersBySubject,
@@ -25,8 +24,6 @@ teacherRouter.get("/all-questions-to-set", verifyLoggedIn, verifyTeacher, getAll
 // Create paper and questions for an assigned subject
 teacherRouter.post("/create-question", verifyLoggedIn, verifyTeacher, createQuestion);
 
-// Assign students to current teacher for one subject
-teacherRouter.post("/assign-students-for-checking", verifyLoggedIn, verifyTeacher, assignStudentsForChecking);
 
 // 1. Fetch list of subject papers that are assigned to currently logged in user
 teacherRouter.get("/assigned-papers-to-check", verifyLoggedIn, verifyTeacher, getAllAssignedPapersToCheck);
