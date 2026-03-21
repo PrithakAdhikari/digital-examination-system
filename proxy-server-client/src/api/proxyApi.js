@@ -31,3 +31,11 @@ export function getQuestions() {
 export function runCode({ language, code }) {
     return axiosInstance.post("/run-code", { language, code }).then((res) => res.data);
 }
+
+export function getClients() {
+    return axiosInstance.get("/clients").then((res) => res.data);
+}
+
+export function deleteClient(clientId) {
+    return axiosInstance.delete(`/clients/${clientId}`).then((res) => res.data);
+}

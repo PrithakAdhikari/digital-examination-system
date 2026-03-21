@@ -181,8 +181,9 @@ export const removeExamination = async (req, res) => {
             console.log(`[Manual] Stopped cron job for exam ${examId} as it was removed.`);
         }
 
-        // Optionally clear local questions
-        await Question.destroy({ where: {}, truncate: true });
+        // Clear local questions
+        const deletedCount = await Question.destroy({ where: {} });
+        console.log(`[Manual] Deleted ${deletedCount} questions associated with exam ${examId}.`);
 
         res.status(200).json({ message: "Examination removed successfully" });
     } catch (err) {

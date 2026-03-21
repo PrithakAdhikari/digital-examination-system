@@ -20,9 +20,16 @@ import {
     getLocalQuestions,
     removeExamination 
 } from "./controllers/examinationController.js";
+import { 
+    registerClient, 
+    heartbeat, 
+    getQuestionForClient, 
+    getClients,
+    deleteClient,
+    monitorHeartbeats
+} from "./controllers/clientController.js";
 import { runCode } from "./controllers/runCodeController.js";
 import DockerPool from "./utils/DockerPool.js";
-
 import http from "http";
 
 const PORT = process.env.PORT || 8000;
@@ -70,6 +77,13 @@ app.post("/remove-examination", removeExamination);
 app.get("/questions", getLocalQuestions);
 app.post("/run-code", runCode);
 
+// Client-specific routes (Examination PCs)
+app.post("/register-client", registerClient);
+app.post("/heartbeat/:client_id", heartbeat);
+app.get("/question-for-client", getQuestionForClient);
+app.get("/clients", getClients);
+app.delete("/clients/:client_id", deleteClient);
+
 // Protected route example
 app.get(
   "/auth/profile",
@@ -107,6 +121,9 @@ const runApp = async () => {
 
     // Initialize Docker Pool
     await DockerPool.initialize();
+
+    // Start heartbeat monitor for clients (every 10s)
+    setInterval(monitorHeartbeats, 10000);
 
     server.listen(PORT, "0.0.0.0", () => {
       console.log(`Server is running on http://localhost:${PORT}`);
