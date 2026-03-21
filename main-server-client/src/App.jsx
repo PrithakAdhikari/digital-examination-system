@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { ProtectedRoute } from "./components/ProtectedRoute.jsx";
+import { Toaster } from "react-hot-toast";
 import AdminLayout from "./components/layout/AdminLayout.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
@@ -50,6 +51,7 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <BrowserRouter>
+            <Toaster position="top-right" reverseOrder={false} />
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route
