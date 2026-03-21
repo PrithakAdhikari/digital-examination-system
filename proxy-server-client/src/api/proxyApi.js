@@ -27,3 +27,7 @@ export function removeExamination() {
 export function getQuestions() {
     return axiosInstance.get("/questions").then((res) => res.data);
 }
+
+export function runCode({ language, code }) {
+    return axiosInstance.post("/run-code", { language, code }).then((res) => res.data);
+}

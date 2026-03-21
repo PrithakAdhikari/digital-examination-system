@@ -586,7 +586,7 @@ export const getAllCenters = async (req, res) => {
         const offset = (page - 1) * limit;
 
         const centers = await sequelize.query(
-            `SELECT * FROM public."ExaminationCenter" ORDER BY "createdAt_ts" DESC LIMIT :limit OFFSET :offset`,
+            `SELECT * FROM public."ExaminationCenter" WHERE deleted = false ORDER BY "createdAt_ts" DESC LIMIT :limit OFFSET :offset`,
             {
                 replacements: { limit, offset },
                 type: Sequelize.QueryTypes.SELECT,
@@ -648,7 +648,7 @@ export const updateCenter = async (req, res) => {
 
     try {
         const center = await ExaminationCenter.findByPk(id);
-        if (!center) {
+        if (!center || center.deleted) {
             return res.status(404).json({ error: "Examination center not found" });
         }
 
@@ -677,7 +677,7 @@ export const patchCenter = async (req, res) => {
 
     try {
         const center = await ExaminationCenter.findByPk(id);
-        if (!center) {
+        if (!center || center.deleted) {
             return res.status(404).json({ error: "Examination center not found" });
         }
 
@@ -695,13 +695,32 @@ export const deleteCenter = async (req, res) => {
     const { id } = req.params;
     try {
         const center = await ExaminationCenter.findByPk(id);
-        if (!center) {
+        if (!center || center.deleted) {
             return res.status(404).json({ error: "Examination center not found" });
         }
 
-        await center.destroy();
+        await center.update({ deleted: true });
+
+        // Optimized: Only fetch examinations that contain this center
+        // Note: Using parseInt(id) because the schema defines center_fk_list as Joi.number()
+        const examinations = await Examination.findAll({
+            where: {
+                center_fk_list: {
+                    [Sequelize.Op.contains]: [parseInt(id)]
+                }
+            }
+        });
+
+        // Use for...of to correctly await each update
+        for (const examination of examinations) {
+            const center_fk_list = examination.center_fk_list || [];
+            // Filter out the deleted center (comparing as strings to handle both Number and String IDs uniformly)
+            const new_center_fk_list = center_fk_list.filter((center_fk) => String(center_fk) !== String(id));
+            await examination.update({ center_fk_list: new_center_fk_list });
+        }
+
         res.status(200).json({
-            message: "Center deleted successfully",
+            message: "Center deleted and removed from examination lists successfully",
         });
     } catch (err) {
         res.status(500).json({ error: "Error deleting center: " + err.message });

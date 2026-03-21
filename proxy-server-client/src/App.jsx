@@ -8,6 +8,7 @@ import RegistrationPage from "./pages/RegistrationPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import ExaminationsPage from "./pages/ExaminationsPage.jsx";
 import MonitorPage from "./pages/MonitorPage.jsx";
+import CodeTesterPage from "./pages/CodeTesterPage.jsx";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +43,7 @@ function App() {
                 <Route path="registration" element={<RegistrationPage />} />
                 <Route path="examinations" element={<ExaminationsPage />} />
                 <Route path="monitor" element={<MonitorPage />} />
+                <Route path="code-tester" element={<CodeTesterPage />} />
                 {/* Future protected routes can go here */}
               </Route>
 

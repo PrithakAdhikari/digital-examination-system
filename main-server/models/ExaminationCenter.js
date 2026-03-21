@@ -34,6 +34,10 @@ const ExaminationCenter = sequelize.define(
       type: DataTypes.STRING(255),
       allowNull: true,
     },
+    deleted: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    }
   },
   {
     tableName: "ExaminationCenter",

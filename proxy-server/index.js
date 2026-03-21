@@ -20,6 +20,8 @@ import {
     getLocalQuestions,
     removeExamination 
 } from "./controllers/examinationController.js";
+import { runCode } from "./controllers/runCodeController.js";
+import DockerPool from "./utils/DockerPool.js";
 
 import http from "http";
 
@@ -66,6 +68,7 @@ app.get("/examinations", getExaminations);
 app.post("/select-examination", selectExamination);
 app.post("/remove-examination", removeExamination);
 app.get("/questions", getLocalQuestions);
+app.post("/run-code", runCode);
 
 // Protected route example
 app.get(
@@ -102,6 +105,9 @@ const runApp = async () => {
     // Initialize cron jobs on startup
     await initializeCronJobs();
 
+    // Initialize Docker Pool
+    await DockerPool.initialize();
+
     server.listen(PORT, "0.0.0.0", () => {
       console.log(`Server is running on http://localhost:${PORT}`);
     });
@@ -109,5 +115,25 @@ const runApp = async () => {
     console.error("Unable to connect to the database:", err);
   }
 };
+
+const handleShutdown = async () => {
+  console.log("\n[Shutdown] Detected signal. Starting cleanup...");
+  
+  // Close the server first to stop accepting new requests
+  server.close(async () => {
+    console.log("[Shutdown] Server closed. Cleaning up Docker pool...");
+    try {
+      await DockerPool.cleanup();
+      console.log("[Shutdown] Cleanup complete. Exiting.");
+      process.exit(0);
+    } catch (err) {
+      console.error("[Shutdown] Cleanup error:", err);
+      process.exit(1);
+    }
+  });
+};
+
+process.on("SIGINT", handleShutdown);
+process.on("SIGTERM", handleShutdown);
 
 runApp();
