@@ -20,6 +20,14 @@ export default function LoginPage() {
         setStoredToken(data.accessToken);
         if (data.user) {
           localStorage.setItem("user", JSON.stringify(data.user));
+          
+          // Redirect based on role if no specific path is requested
+          if (!location.state?.from) {
+            if (data.user.role === "TEACHER") {
+              navigate("/teacher", { replace: true });
+              return;
+            }
+          }
         }
         navigate(from, { replace: true });
       }

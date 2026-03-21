@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useTheme } from "../../context/ThemeContext.jsx";
 import { clearStoredToken } from "../../api/axiosInstance.js";
 
-export default function Navbar({ onMenuClick }) {
+export default function Navbar({ onMenuClick, homePath = "/admin" }) {
   const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState(null);
 
@@ -44,7 +44,7 @@ export default function Navbar({ onMenuClick }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <Link to="/admin" className="ml-2 flex items-center gap-3 group">
+          <Link to={homePath} className="ml-2 flex items-center gap-3 group">
             <div className="hidden sm:flex flex-col">
               <span className="text-lg font-bold tracking-tight leading-none">DES</span>
               <span className="text-[10px] uppercase tracking-widest opacity-50 font-semibold">Digital Exam System</span>

@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { ProtectedRoute } from "./components/ProtectedRoute.jsx";
+import { Toaster } from "react-hot-toast";
 import AdminLayout from "./components/layout/AdminLayout.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
@@ -10,6 +11,29 @@ import ExaminationsPage from "./pages/ExaminationsPage.jsx";
 import ExaminationFormPage from "./pages/ExaminationFormPage.jsx";
 import ExamCentersPage from "./pages/ExamCentersPage.jsx";
 import UserPage from "./pages/UserPage.jsx";
+import TeacherLayout from "./components/layout/TeacherLayout.jsx";
+import TeacherDashboardPage from "./pages/TeacherDashboardPage.jsx";
+import TeacherQuestionsPage from "./pages/TeacherQuestionsPage.jsx";
+import TeacherQuestionCreatePage from "./pages/TeacherQuestionCreatePage.jsx";
+import TeacherAnswersPage from "./pages/TeacherAnswersPage.jsx";
+import TeacherSubmissionsPage from "./pages/TeacherSubmissionsPage.jsx";
+import TeacherGradingPage from "./pages/TeacherGradingPage.jsx";
+import AnswersPage from "./pages/AnswersPage.jsx";
+
+function RootRedirect() {
+  const storedUser = localStorage.getItem("user");
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      if (user.role === "TEACHER") {
+        return <Navigate to="/teacher" replace />;
+      }
+    } catch (e) {
+      console.error("Failed to parse user data", e);
+    }
+  }
+  return <Navigate to="/admin" replace />;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +51,7 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <BrowserRouter>
+            <Toaster position="top-right" reverseOrder={false} />
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route
@@ -43,9 +68,28 @@ function App() {
                 <Route path="examinations/edit/:id" element={<ExaminationFormPage />} />
                 <Route path="centers" element={<ExamCentersPage />} />
                 <Route path="users" element={<UserPage />} />
+                <Route path="answers" element={<AnswersPage />} />
               </Route>
-              <Route path="/" element={<Navigate to="/admin" replace />} />
-              <Route path="*" element={<Navigate to="/admin" replace />} />
+
+              {/* Teacher Routes */}
+              <Route
+                path="/teacher"
+                element={
+                  <ProtectedRoute>
+                    <TeacherLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<TeacherDashboardPage />} />
+                <Route path="questions" element={<TeacherQuestionsPage />} />
+                <Route path="questions/create/:subjectId" element={<TeacherQuestionCreatePage />} />
+                <Route path="answers" element={<TeacherAnswersPage />} />
+                <Route path="answers/:subjectId" element={<TeacherSubmissionsPage />} />
+                <Route path="grading/:subjectId/:studentId" element={<TeacherGradingPage />} />
+              </Route>
+
+              <Route path="/" element={<RootRedirect />} />
+              <Route path="*" element={<RootRedirect />} />
             </Routes>
           </BrowserRouter>
         </ThemeProvider>

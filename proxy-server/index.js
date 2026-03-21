@@ -12,7 +12,7 @@ import User from "./models/User.js";
 import authRouter from "./routes/authRoutes.js";
 import sequelizeSqlite from "./sqliteDatabase.js";
 import ProxySetting from "./models/ProxySetting.js";
-import Question from "./models/Question.js";
+import StudentAnswer from "./models/StudentAnswer.js";
 import { 
     getExaminations, 
     selectExamination, 
@@ -30,6 +30,7 @@ import {
 } from "./controllers/clientController.js";
 import { runCode } from "./controllers/runCodeController.js";
 import DockerPool from "./utils/DockerPool.js";
+import { submitAnswer, syncAnswersToMain } from "./controllers/answerController.js";
 import http from "http";
 
 const PORT = process.env.PORT || 8000;
@@ -83,6 +84,9 @@ app.post("/heartbeat/:client_id", heartbeat);
 app.get("/question-for-client", getQuestionForClient);
 app.get("/clients", getClients);
 app.delete("/clients/:client_id", deleteClient);
+// Answer Routes
+app.post("/submit-answer", passport.authenticate("jwt", { session: false }), submitAnswer);
+app.post("/sync-answers", syncAnswersToMain);
 
 // Protected route example
 app.get(

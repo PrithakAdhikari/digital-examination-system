@@ -4,6 +4,7 @@ import ExaminationSubject from "../models/ExaminationSubject.js";
 import SubjectPaper from "../models/SubjectPaper.js";
 import PaperQuestion from "../models/PaperQuestion.js";
 import ExamAnswerToken from "../models/ExamAnswerToken.js";
+import StudentQuestionAnswer from "../models/StudentQuestionAnswer.js";
 import sequelize from "../database.js";
 import { Sequelize } from "sequelize";
 
@@ -134,5 +135,36 @@ export const getQuestionsForProxy = async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ error: "Error fetching questions: " + err.message });
+    }
+};
+
+/**
+ * bulkCreateStudentAnswers
+ * Accepts an array of student answers from the proxy and bulk creates/updates them.
+ */
+export const bulkCreateStudentAnswers = async (req, res) => {
+    const { answers } = req.body;
+
+    if (!answers || !Array.isArray(answers)) {
+        return res.status(400).json({ error: "answers array is required." });
+    }
+
+    const t = await sequelize.transaction();
+
+    try {
+        await StudentQuestionAnswer.bulkCreate(answers, {
+            updateOnDuplicate: ["stud_answer", "updatedAt_ts"],
+            transaction: t,
+        });
+
+        await t.commit();
+
+        res.status(200).json({
+            message: `Successfully synced ${answers.length} answers.`,
+        });
+    } catch (err) {
+        await t.rollback();
+        console.error("Bulk sync error:", err.message);
+        res.status(500).json({ error: "Error during bulk sync: " + err.message });
     }
 };

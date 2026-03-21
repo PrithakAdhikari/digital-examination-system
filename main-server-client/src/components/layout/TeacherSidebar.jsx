@@ -1,61 +1,51 @@
 import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 
-const navItems = [
-  { 
-    to: "/admin", 
-    end: true, 
-    label: "Dashboard", 
+const activeItems = [
+  {
+    to: "/teacher",
+    end: true,
+    label: "Dashboard",
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
       </svg>
-    )
+    ),
   },
-  { 
-    to: "/admin/examinations", 
-    end: false, 
-    label: "Examinations", 
-    note: "Manage exams & centers",
+  {
+    to: "/teacher/questions",
+    end: false,
+    label: "Questions",
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 4v-4z" />
       </svg>
-    )
+    ),
   },
-  { 
-    to: "/admin/centers", 
-    end: false, 
-    label: "Exam Centers",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-      </svg>
-    )
-  },
-  { 
-    to: "/admin/users", 
-    end: false, 
-    label: "Users",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-      </svg>
-    )
-  },
-  { 
-    to: "/admin/answers", 
-    end: false, 
+  {
+    to: "/teacher/answers",
+    end: false,
     label: "Answers",
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h6l5 5v11a2 2 0 01-2 2z" />
       </svg>
-    )
-  }
+    ),
+  },
 ];
 
-export default function Sidebar({ onLinkClick, onClose }) {
+const placeholderItems = [
+  {
+    label: "Students",
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5V9H2v11h5m10 0v-2a4 4 0 00-8 0v2m8 0H9m4-13a3 3 0 110 6 3 3 0 010-6z" />
+      </svg>
+    ),
+  },
+];
+
+export default function TeacherSidebar({ onLinkClick, onClose }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -75,19 +65,13 @@ export default function Sidebar({ onLinkClick, onClose }) {
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-bold tracking-tight">Digital Examination System</h2>
         </div>
-        <button 
-          type="button" 
-          className="btn btn-ghost btn-sm btn-square rounded-lg lg:hidden" 
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm btn-square rounded-lg lg:hidden"
           onClick={onClose}
           aria-label="Close menu"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
@@ -97,32 +81,35 @@ export default function Sidebar({ onLinkClick, onClose }) {
         <div className="px-2 mb-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-base-content/40 mb-4 px-2">Main Menu</p>
           <ul className="menu menu-md gap-1.5 p-0">
-            {navItems.map(({ to, end, label, note, icon }) => (
+            {activeItems.map(({ to, end, label, icon }) => (
               <li key={to}>
                 <NavLink
                   to={to}
                   end={end}
                   onClick={onLinkClick}
-                  className={({ isActive }) => 
+                  className={({ isActive }) =>
                     `group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-                      isActive 
-                        ? "bg-primary text-primary-content shadow-lg shadow-primary/25 font-semibold active-nav-glow" 
+                      isActive
+                        ? "bg-primary text-primary-content shadow-lg shadow-primary/25 font-semibold active-nav-glow"
                         : "hover:bg-primary/10 text-base-content/70 hover:text-primary"
                     }`
                   }
                 >
-                  <span className={`flex-shrink-0 transition-transform duration-300 group-hover:scale-110`}>
-                    {icon}
-                  </span>
-                  <div className="flex flex-col">
-                    <span className="text-sm">{label}</span>
-                    {note && (
-                      <span className="text-[10px] font-normal leading-tight opacity-60">
-                        {note}
-                      </span>
-                    )}
-                  </div>
+                  <span className="flex-shrink-0 transition-transform duration-300 group-hover:scale-110">{icon}</span>
+                  <span className="text-sm">{label}</span>
                 </NavLink>
+              </li>
+            ))}
+
+            {placeholderItems.map(({ label, icon }) => (
+              <li key={label}>
+                <span className="flex items-center justify-between px-4 py-3 rounded-xl text-base-content/40 bg-base-200/20 cursor-not-allowed">
+                  <span className="flex items-center gap-3">
+                    <span className="flex-shrink-0 opacity-70">{icon}</span>
+                    <span className="text-sm font-medium">{label}</span>
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Soon</span>
+                </span>
               </li>
             ))}
           </ul>
@@ -131,8 +118,8 @@ export default function Sidebar({ onLinkClick, onClose }) {
 
       <div className="mt-auto px-2 pt-4 border-t border-base-300/30">
         <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 mb-4">
-          <p className="text-xs font-bold text-primary mb-1">Need help?</p>
-          <p className="text-[10px] opacity-60 leading-relaxed">Check our documentation for advanced exam setups.</p>
+          <p className="text-xs font-bold text-primary mb-1">Teacher Panel</p>
+          <p className="text-[10px] opacity-60 leading-relaxed">Monitor center progress and assigned examination tasks.</p>
         </div>
         <div className="flex items-center gap-3 px-2 py-2 group cursor-default">
           <div className="w-9 h-9 rounded-xl bg-neutral text-neutral-content flex items-center justify-center overflow-hidden shadow-inner flex-shrink-0">
@@ -146,11 +133,9 @@ export default function Sidebar({ onLinkClick, onClose }) {
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-xs font-bold truncate">
-              {user ? `${user.firstName} ${user.lastName}` : "Guest Admin"}
+              {user ? `${user.firstName} ${user.lastName}` : "Guest Teacher"}
             </span>
-            <span className="text-[10px] opacity-40 truncate">
-              {user?.email || "admin@des.com"}
-            </span>
+            <span className="text-[10px] opacity-40 truncate">{user?.email || "teacher@des.com"}</span>
           </div>
         </div>
       </div>
