@@ -29,3 +29,10 @@ export function useTeacherAverageResultsOverExaminations() {
     queryFn: teacherApi.getTeacherAverageResultsOverExaminations,
   });
 }
+
+export function useAssignedQuestionsToWrite() {
+  return useQuery({
+    queryKey: teacherKeys.assignedQuestionsToWrite(),
+    queryFn: teacherApi.getAssignedQuestionsToWrite,
+  });
+}

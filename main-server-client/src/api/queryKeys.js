@@ -20,4 +20,6 @@ export const teacherKeys = {
   upcomingExaminations: () => [...teacherKeys.dashboard(), "upcoming-examinations"],
   topStudents: () => [...teacherKeys.dashboard(), "top-students"],
   averageResultsOverExaminations: () => [...teacherKeys.dashboard(), "average-results-over-examinations"],
+  questions: () => [...teacherKeys.all, "questions"],
+  assignedQuestionsToWrite: () => [...teacherKeys.questions(), "assigned-to-write"],
 };

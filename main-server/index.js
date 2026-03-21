@@ -102,6 +102,7 @@ const runApp = async () => {
   try {
     await sequelize.authenticate();
     console.log("Database connected successfully.");
+    await sequelize.query(`ALTER TABLE public."PaperQuestion" ADD COLUMN IF NOT EXISTS correct_option TEXT`);
     // await sequelize.sync({ alter: true });
 
     server.listen(PORT, "0.0.0.0", () => {

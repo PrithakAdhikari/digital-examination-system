@@ -54,6 +54,7 @@ const subjectPaperSchema = Joi.object({
                 option2: Joi.string().allow(null, "").optional(),
                 option3: Joi.string().allow(null, "").optional(),
                 option4: Joi.string().allow(null, "").optional(),
+                correct_option: Joi.number().integer().valid(1, 2, 3, 4).allow(null),
                 full_marks: Joi.number().required(),
             })
         )
@@ -86,6 +87,11 @@ export const getAllQuestionsToSet = async (req, res) => {
             FROM public."ExaminationSubject" es
             JOIN public.examinations e ON es.exam_fk_id = e.id
             WHERE es.exam_setter_user_fk_id = :userId
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM public."SubjectPaper" sp
+                  WHERE sp.subject_fk_id = es.id
+              )
             ORDER BY e."exam_startTime_ts" ASC;
             `,
             {
@@ -112,6 +118,19 @@ export const createQuestion = async (req, res) => {
     const { error, value } = subjectPaperSchema.validate(req.body);
     if (error) {
         return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const invalidQuestion = value.questions.find((q) => {
+        if (q.question_type === "MCQ") {
+            return !q.option1 || !q.option2 || !q.option3 || !q.option4 || !q.correct_option;
+        }
+        return false;
+    });
+
+    if (invalidQuestion) {
+        return res.status(400).json({
+            error: "MCQ question must have option1, option2, option3, option4 and correct_option.",
+        });
     }
 
     // Verify that the user is the assigned setter for this subject
@@ -171,6 +190,7 @@ export const createQuestion = async (req, res) => {
                 option2: q.option2 ? encrypt(q.option2, paperKey) : null,
                 option3: q.option3 ? encrypt(q.option3, paperKey) : null,
                 option4: q.option4 ? encrypt(q.option4, paperKey) : null,
+                correct_option: q.correct_option ? encrypt(String(q.correct_option), paperKey) : null,
                 full_marks: q.full_marks,
             };
 
@@ -414,6 +434,7 @@ export const getStudentAnswersBySubject = async (req, res) => {
                 pq.option2,
                 pq.option3,
                 pq.option4,
+                pq.correct_option,
                 eat.aes_256_key AS "encrypted_paper_key"
             FROM public."StudentQuestionAnswer" sqa
             JOIN public."PaperQuestion" pq ON sqa.exam_question_fk_id = pq.id
@@ -462,6 +483,7 @@ export const getStudentAnswersBySubject = async (req, res) => {
                 option2: row.option2 ? decrypt(row.option2, paperKey) : null,
                 option3: row.option3 ? decrypt(row.option3, paperKey) : null,
                 option4: row.option4 ? decrypt(row.option4, paperKey) : null,
+                correct_option: row.correct_option ? Number(decrypt(row.correct_option, paperKey)) : null,
                 stud_answer: studAnswer,
                 encrypted_paper_key: undefined,
             };

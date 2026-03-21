@@ -23,3 +23,11 @@ export function getTeacherAverageResultsOverExaminations() {
     .get(`${teacher}/dashboard/average-results-over-examinations`)
     .then((res) => res.data?.data ?? res.data);
 }
+
+export function getAssignedQuestionsToWrite() {
+  return axiosInstance.get(`${teacher}/all-questions-to-set`).then((res) => res.data?.data ?? res.data);
+}
+
+export function createTeacherQuestionPaper(payload) {
+  return axiosInstance.post(`${teacher}/create-question`, payload).then((res) => res.data?.data ?? res.data);
+}
