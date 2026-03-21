@@ -37,6 +37,14 @@ const PaperQuestion = sequelize.define(
       type: DataTypes.TEXT("long"),
       allowNull: true,
     },
+    correct_option: {
+      type: DataTypes.TEXT("long"),
+      allowNull: true,
+    },
+    full_marks: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    }
   },
   {
     tableName: "PaperQuestion",

@@ -9,6 +9,7 @@ import StudentQuestionAnswer from "./StudentQuestionAnswer.js";
 import StudentAnswerMarks from "./StudentAnswerMarks.js";
 import ExamStudent from "./ExamStudent.js";
 import Token from "./Token.js";
+import SubjectStudentCheckerAssignment from "./SubjectStudentCheckerAssignment.js";
 
 const setupAssociations = () => {
   // --- User Relationships ---
@@ -25,6 +26,15 @@ const setupAssociations = () => {
   // --- ExaminationSubject Relationships ---
   ExaminationSubject.belongsTo(User, { foreignKey: "exam_setter_user_fk_id", as: "setter" });
   User.hasMany(ExaminationSubject, { foreignKey: "exam_setter_user_fk_id", as: "assignedSets" });
+
+  ExaminationSubject.hasMany(SubjectStudentCheckerAssignment, { foreignKey: "subject_fk_id", as: "studentCheckerAssignments" });
+  SubjectStudentCheckerAssignment.belongsTo(ExaminationSubject, { foreignKey: "subject_fk_id", as: "subject" });
+
+  SubjectStudentCheckerAssignment.belongsTo(User, { foreignKey: "student_user_fk_id", as: "student" });
+  User.hasMany(SubjectStudentCheckerAssignment, { foreignKey: "student_user_fk_id", as: "subjectAssignmentsAsStudent" });
+
+  SubjectStudentCheckerAssignment.belongsTo(User, { foreignKey: "checker_user_fk_id", as: "checker" });
+  User.hasMany(SubjectStudentCheckerAssignment, { foreignKey: "checker_user_fk_id", as: "subjectAssignmentsAsChecker" });
 
   ExaminationSubject.hasMany(SubjectPaper, { foreignKey: "subject_fk_id", as: "papers" });
   SubjectPaper.belongsTo(ExaminationSubject, { foreignKey: "subject_fk_id", as: "subject" });

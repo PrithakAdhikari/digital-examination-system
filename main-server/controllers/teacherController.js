@@ -6,6 +6,7 @@ import ExamAnswerToken from "../models/ExamAnswerToken.js";
 import ExaminationSubject from "../models/ExaminationSubject.js";
 import StudentQuestionAnswer from "../models/StudentQuestionAnswer.js";
 import StudentAnswerMarks from "../models/StudentAnswerMarks.js";
+import SubjectStudentCheckerAssignment from "../models/SubjectStudentCheckerAssignment.js";
 import User from "../models/User.js";
 import sequelize from "../database.js";
 import { Sequelize } from "sequelize";
@@ -53,11 +54,14 @@ const subjectPaperSchema = Joi.object({
                 option2: Joi.string().allow(null, "").optional(),
                 option3: Joi.string().allow(null, "").optional(),
                 option4: Joi.string().allow(null, "").optional(),
+                correct_option: Joi.number().integer().valid(1, 2, 3, 4).allow(null),
+                full_marks: Joi.number().required(),
             })
         )
         .min(1)
         .required(),
 });
+
 
 // --- Teacher Controllers ---
 
@@ -83,6 +87,11 @@ export const getAllQuestionsToSet = async (req, res) => {
             FROM public."ExaminationSubject" es
             JOIN public.examinations e ON es.exam_fk_id = e.id
             WHERE es.exam_setter_user_fk_id = :userId
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM public."SubjectPaper" sp
+                  WHERE sp.subject_fk_id = es.id
+              )
             ORDER BY e."exam_startTime_ts" ASC;
             `,
             {
@@ -109,6 +118,19 @@ export const createQuestion = async (req, res) => {
     const { error, value } = subjectPaperSchema.validate(req.body);
     if (error) {
         return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const invalidQuestion = value.questions.find((q) => {
+        if (q.question_type === "MCQ") {
+            return !q.option1 || !q.option2 || !q.option3 || !q.option4 || !q.correct_option;
+        }
+        return false;
+    });
+
+    if (invalidQuestion) {
+        return res.status(400).json({
+            error: "MCQ question must have option1, option2, option3, option4 and correct_option.",
+        });
     }
 
     // Verify that the user is the assigned setter for this subject
@@ -168,6 +190,8 @@ export const createQuestion = async (req, res) => {
                 option2: q.option2 ? encrypt(q.option2, paperKey) : null,
                 option3: q.option3 ? encrypt(q.option3, paperKey) : null,
                 option4: q.option4 ? encrypt(q.option4, paperKey) : null,
+                correct_option: q.correct_option ? encrypt(String(q.correct_option), paperKey) : null,
+                full_marks: q.full_marks,
             };
 
             const question = await PaperQuestion.create(encryptedData, { transaction: t });
@@ -196,6 +220,7 @@ export const createQuestion = async (req, res) => {
         res.status(500).json({ error: "Error creating subject paper: " + err.message });
     }
 };
+
 
 /**
  * 1. getAllAssignedPapersToCheck
@@ -237,57 +262,52 @@ export const getAllAssignedPapersToCheck = async (req, res) => {
 
 /**
  * 2. getAllStudentsAnswersToCheck
- * Use subject_fk_id to fetch the list of all the assigned student answers to be checked by currently logged in user.
+ * Use optional subject_fk_id to fetch the list of all the assigned student answers to be checked by currently logged in user.
+ * If subject_fk_id is not provided, returns all submissions for all subjects assigned to the teacher.
  */
 export const getAllStudentsAnswersToCheck = async (req, res) => {
     try {
         const { subject_fk_id } = req.params;
         const userId = req.user.id;
 
-        // Verify user is an assigned checker for this subject
-        const [assigned] = await sequelize.query(
-            `SELECT id FROM public."SubjectPaper" WHERE subject_fk_id = :subject_fk_id AND paper_checkers_list @> :userId::jsonb`,
+        const assignedStudents = await sequelize.query(
+            `
+            SELECT 
+                ssca.student_user_fk_id,
+                ssca.subject_fk_id,
+                es.subject_name_txt,
+                e.exam_name_txt,
+                sp.exam_batch_year,
+                COUNT(sqa.id) AS "answers_count",
+                MAX(sqa."createdAt_ts") AS "last_submitted_at"
+            FROM public."SubjectStudentCheckerAssignment" ssca
+            JOIN public."User" u ON u.id = ssca.student_user_fk_id
+            JOIN public."ExaminationSubject" es ON ssca.subject_fk_id = es.id
+            JOIN public.examinations e ON es.exam_fk_id = e.id
+            LEFT JOIN public."SubjectPaper" sp ON sp.subject_fk_id = ssca.subject_fk_id
+            LEFT JOIN public."StudentQuestionAnswer" sqa 
+                ON sqa.stud_user_fk_id = ssca.student_user_fk_id
+                AND EXISTS (
+                    SELECT 1 FROM public."PaperQuestion" pq2 
+                    WHERE pq2.paper_fk_id = sp.id AND pq2.id = sqa.exam_question_fk_id
+                )
+            WHERE ssca.checker_user_fk_id = :userId
+              AND (:subject_fk_id_val IS NULL OR ssca.subject_fk_id = :subject_fk_id_val)
+            GROUP BY ssca.student_user_fk_id, ssca.subject_fk_id, es.subject_name_txt, e.exam_name_txt, sp.exam_batch_year
+            ORDER BY MAX(sqa."createdAt_ts") DESC NULLS LAST;
+            `,
             {
                 replacements: {
-                    subject_fk_id,
-                    userId: JSON.stringify([parseInt(userId)])
+                    subject_fk_id_val: subject_fk_id || null,
+                    userId,
                 },
                 type: Sequelize.QueryTypes.SELECT,
             }
         );
 
-        if (!assigned) {
-            return res.status(403).json({ error: "Forbidden: You are not an assigned checker for this subject." });
-        }
-
-        // Fetch student answers for this subject
-        const answers = await sequelize.query(
-            `
-            SELECT 
-                sqa.id AS "answer_id",
-                sqa.stud_user_fk_id,
-                sqa."createdAt_ts" AS "submitted_at",
-                u.firstname_txt,
-                u.lastname_txt,
-                u.username,
-                pq.question_type,
-                pq.id AS "question_id"
-            FROM public."StudentQuestionAnswer" sqa
-            JOIN public."User" u ON sqa.stud_user_fk_id = u.id
-            JOIN public."PaperQuestion" pq ON sqa.exam_question_fk_id = pq.id
-            JOIN public."SubjectPaper" sp ON pq.paper_fk_id = sp.id
-            WHERE sp.subject_fk_id = :subject_fk_id
-            ORDER BY sqa."createdAt_ts" DESC;
-            `,
-            {
-                replacements: { subject_fk_id },
-                type: Sequelize.QueryTypes.SELECT,
-            }
-        );
-
         res.status(200).json({
-            message: "Student answers fetched successfully",
-            data: answers,
+            message: "Assigned submissions fetched successfully",
+            data: assignedStudents,
         });
     } catch (err) {
         res.status(500).json({ error: "Error fetching student answers: " + err.message });
@@ -387,6 +407,112 @@ export const getAnswerById = async (req, res) => {
 };
 
 /**
+ * 3b. getStudentAnswersBySubject
+ * Fetch all answers for one assigned student in one subject.
+ */
+export const getStudentAnswersBySubject = async (req, res) => {
+    try {
+        const { subject_fk_id, student_user_fk_id } = req.params;
+        const userId = req.user.id;
+
+        const assignment = await SubjectStudentCheckerAssignment.findOne({
+            where: {
+                subject_fk_id,
+                student_user_fk_id,
+                checker_user_fk_id: userId,
+            },
+        });
+
+        if (!assignment) {
+            return res.status(403).json({ error: "Forbidden: Student is not assigned to you for this subject." });
+        }
+
+        const answers = await sequelize.query(
+            `
+            SELECT
+                pq.id AS "question_id",
+                pq.question_type,
+                pq.question_txt,
+                pq.option1,
+                pq.option2,
+                pq.option3,
+                pq.option4,
+                pq.correct_option,
+                pq.full_marks,
+                sqa.id AS "answer_id",
+                sqa.stud_answer,
+                sqa."createdAt_ts" AS "submitted_at",
+                eat.aes_256_key AS "encrypted_paper_key",
+                sam.marks_obtained,
+                sam.feedback
+            FROM public."PaperQuestion" pq
+            JOIN public."SubjectPaper" sp ON pq.paper_fk_id = sp.id
+            LEFT JOIN public."StudentQuestionAnswer" sqa 
+                ON sqa.exam_question_fk_id = pq.id 
+                AND sqa.stud_user_fk_id = :student_user_fk_id
+            LEFT JOIN public."ExamAnswerToken" eat ON pq.id = eat.question_fk_id
+            LEFT JOIN public."StudentAnswerMarks" sam ON sam.stud_answer_fk_id = sqa.id
+            WHERE sp.subject_fk_id = :subject_fk_id
+            ORDER BY pq.id ASC;
+            `,
+            {
+                replacements: {
+                    subject_fk_id,
+                    student_user_fk_id,
+                },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        const masterKeyHex = process.env.AES_MASTER_KEY;
+        if (!masterKeyHex) {
+            throw new Error("AES_MASTER_KEY not found in .env");
+        }
+
+        const decryptedAnswers = answers.map((row) => {
+            if (!row.encrypted_paper_key) {
+                return row;
+            }
+
+            const paperKeyHex = decrypt(row.encrypted_paper_key, Buffer.from(masterKeyHex, "hex"));
+            const paperKey = Buffer.from(paperKeyHex, "hex");
+
+            let studAnswer = row.stud_answer;
+            if (typeof studAnswer === "string") {
+                studAnswer = decrypt(studAnswer, paperKey);
+            } else if (studAnswer && typeof studAnswer === "object" && studAnswer.text) {
+                studAnswer = {
+                    ...studAnswer,
+                    text: decrypt(studAnswer.text, paperKey),
+                };
+            }
+
+            return {
+                ...row,
+                question_txt: row.question_txt ? decrypt(row.question_txt, paperKey) : row.question_txt,
+                option1: row.option1 ? decrypt(row.option1, paperKey) : null,
+                option2: row.option2 ? decrypt(row.option2, paperKey) : null,
+                option3: row.option3 ? decrypt(row.option3, paperKey) : null,
+                option4: row.option4 ? decrypt(row.option4, paperKey) : null,
+                correct_option: row.correct_option ? Number(decrypt(row.correct_option, paperKey)) : null,
+                full_marks: row.full_marks,
+                stud_answer: studAnswer,
+                marks_obtained: row.marks_obtained,
+                feedback: row.feedback,
+                encrypted_paper_key: undefined,
+            };
+        });
+
+        res.status(200).json({
+            message: "Student answers for subject fetched successfully",
+            data: decryptedAnswers,
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching student answers for subject: " + err.message });
+    }
+};
+
+/**
  * 4. POST assignSubjectMarks
  * Use student_user_fk_id and (logic to link to student answers) and marks_obtained 
  * to create a StudentAnswerMarks record.
@@ -408,20 +534,16 @@ export const assignSubjectMarks = async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Verify checker assignment
-        const [assigned] = await sequelize.query(
-            `SELECT id FROM public."SubjectPaper" WHERE subject_fk_id = :subject_fk_id AND paper_checkers_list @> :userId::jsonb`,
-            {
-                replacements: {
-                    subject_fk_id: value.exam_subject_fk_id,
-                    userId: JSON.stringify([parseInt(userId)])
-                },
-                type: Sequelize.QueryTypes.SELECT,
-            }
-        );
+        const assigned = await SubjectStudentCheckerAssignment.findOne({
+            where: {
+                subject_fk_id: value.exam_subject_fk_id,
+                student_user_fk_id: value.student_user_fk_id,
+                checker_user_fk_id: userId,
+            },
+        });
 
         if (!assigned) {
-            return res.status(403).json({ error: "Forbidden: You are not an assigned checker for this subject." });
+            return res.status(403).json({ error: "Forbidden: You are not assigned to check this student's subject." });
         }
 
         // Find one answer for this student and subject to link the marks to
@@ -473,6 +595,94 @@ export const assignSubjectMarks = async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ error: "Error assigning marks: " + err.message });
+    }
+};
+
+/**
+ * 4b. POST assignQuestionMark
+ * Assign marks to a specific question answer.
+ */
+export const assignQuestionMark = async (req, res) => {
+    const questionMarkSchema = Joi.object({
+        answer_id: Joi.number().required(),
+        marks_obtained: Joi.number().required(),
+        feedback: Joi.string().allow(null, "").optional(),
+    });
+
+    const { error, value } = questionMarkSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
+    try {
+        const userId = req.user.id;
+        const { answer_id, marks_obtained, feedback } = value;
+
+        // Verify the answer exists and the teacher is assigned
+        const [answer] = await sequelize.query(
+            `
+            SELECT 
+                sqa.id, 
+                sqa.stud_user_fk_id, 
+                sp.subject_fk_id,
+                pq.full_marks
+            FROM public."StudentQuestionAnswer" sqa
+            JOIN public."PaperQuestion" pq ON sqa.exam_question_fk_id = pq.id
+            JOIN public."SubjectPaper" sp ON pq.paper_fk_id = sp.id
+            WHERE sqa.id = :answer_id
+            LIMIT 1;
+            `,
+            {
+                replacements: { answer_id },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        if (!answer) {
+            return res.status(404).json({ error: "Answer not found." });
+        }
+
+        if (marks_obtained > answer.full_marks) {
+            return res.status(400).json({ error: `Marks obtained (${marks_obtained}) cannot exceed full marks (${answer.full_marks}).` });
+        }
+
+        const assigned = await SubjectStudentCheckerAssignment.findOne({
+            where: {
+                subject_fk_id: answer.subject_fk_id,
+                student_user_fk_id: answer.stud_user_fk_id,
+                checker_user_fk_id: userId,
+            },
+        });
+
+        if (!assigned) {
+            return res.status(403).json({ error: "Forbidden: You are not assigned to grade this submission." });
+        }
+
+        // Create or update marks for this specific answer
+        const [marks, created] = await StudentAnswerMarks.findOrCreate({
+            where: {
+                stud_answer_fk_id: answer_id
+            },
+            defaults: {
+                stud_user_fk_id: answer.stud_user_fk_id,
+                marks_obtained,
+                feedback,
+                subject_fk_id: answer.subject_fk_id
+            }
+        });
+
+        if (!created) {
+            marks.marks_obtained = marks_obtained;
+            marks.feedback = feedback;
+            await marks.save();
+        }
+
+        res.status(200).json({
+            message: created ? "Question marks assigned" : "Question marks updated",
+            data: marks
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error assigning question marks: " + err.message });
     }
 };
 
@@ -594,5 +804,205 @@ export const getAllStudentInTeacherCenter = async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ error: "Error fetching center students: " + err.message });
+    }
+};
+
+// --- Teacher Dashboard Controllers ---
+
+const teacherAssignedExamsCte = `
+    WITH assigned_exams AS (
+    SELECT es.exam_fk_id AS exam_id,
+           BOOL_OR(es.exam_setter_user_fk_id = :userId) AS is_setter,
+           BOOL_OR(sp.paper_checkers_list @> :checkerUser::jsonb) AS is_checker
+    FROM public."ExaminationSubject" es
+    LEFT JOIN public."SubjectPaper" sp 
+        ON sp.subject_fk_id = es.id
+    GROUP BY es.exam_fk_id
+    HAVING 
+        BOOL_OR(es.exam_setter_user_fk_id = :userId)
+        OR
+        BOOL_OR(sp.paper_checkers_list @> :checkerUser::jsonb)
+    )
+`;
+
+export const getTeacherExamSummary = async (req, res) => {
+    try {
+        const userId = parseInt(req.user.id, 10);
+        const checkerUser = JSON.stringify([userId]);
+        const now = new Date();
+
+        const [summary] = await sequelize.query(
+            `${teacherAssignedExamsCte}
+             SELECT
+                COUNT(*) AS total,
+                COUNT(*) FILTER (
+                    WHERE e."result_time_ts" IS NOT NULL AND e."result_time_ts" < :now
+                ) AS finished,
+                COUNT(*) FILTER (
+                    WHERE e."exam_startTime_ts" <= :now
+                      AND (e."result_time_ts" IS NULL OR e."result_time_ts" >= :now)
+                ) AS ongoing,
+                COUNT(*) FILTER (
+                    WHERE e."exam_startTime_ts" > :now
+                ) AS upcoming
+             FROM assigned_exams ae
+             JOIN public.examinations e ON e.id = ae.exam_id`,
+            {
+                replacements: { userId, checkerUser, now },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        res.status(200).json({
+            message: "Teacher exam summary fetched",
+            data: {
+                total: parseInt(summary?.total ?? 0, 10),
+                finished: parseInt(summary?.finished ?? 0, 10),
+                ongoing: parseInt(summary?.ongoing ?? 0, 10),
+                upcoming: parseInt(summary?.upcoming ?? 0, 10),
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching teacher exam summary: " + err.message });
+    }
+};
+
+export const getTeacherUpcomingExaminations = async (req, res) => {
+    try {
+        const userId = parseInt(req.user.id, 10);
+        const checkerUser = JSON.stringify([userId]);
+        const now = new Date();
+        const limit = Math.min(parseInt(req.query.limit, 10) || 6, 20);
+
+        const rows = await sequelize.query(
+            `${teacherAssignedExamsCte}
+             SELECT
+                e.id AS "examId",
+                e.exam_name_txt AS "examName",
+                e."exam_startTime_ts" AS "examStartTime",
+                e."result_time_ts" AS "resultTime",
+                CASE
+                    WHEN ae.is_setter AND ae.is_checker THEN 'SETTER_AND_CHECKER'
+                    WHEN ae.is_setter THEN 'SETTER'
+                    ELSE 'CHECKER'
+                END AS "assignedAs"
+            FROM assigned_exams ae
+            JOIN public.examinations e ON e.id = ae.exam_id
+            WHERE e."exam_startTime_ts" > :now
+            ORDER BY e."exam_startTime_ts" ASC
+            LIMIT :limit`,
+            {
+                replacements: { userId, checkerUser, now, limit },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        res.status(200).json({
+            message: "Teacher upcoming examinations fetched",
+            data: Array.isArray(rows) ? rows : [],
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching upcoming examinations: " + err.message });
+    }
+};
+
+export const getTeacherTopStudents = async (req, res) => {
+    try {
+        const centerId = req.user.center_fk_id;
+        const limit = Math.min(parseInt(req.query.limit, 10) || 3, 10);
+
+        if (!centerId) {
+            return res.status(200).json({
+                message: "Teacher has no assigned center",
+                data: [],
+            });
+        }
+
+        const rows = await sequelize.query(
+            `SELECT
+                u.id,
+                u.firstname_txt,
+                u.lastname_txt,
+                u.username,
+                COALESCE(SUM(sam.marks_obtained), 0) AS total_marks
+             FROM public."User" u
+             LEFT JOIN public."StudentAnswerMarks" sam ON sam.stud_user_fk_id = u.id
+             WHERE u.role = 'STUDENT'
+               AND u.is_active = true
+               AND u.center_fk_id = :centerId
+             GROUP BY u.id, u.firstname_txt, u.lastname_txt, u.username
+             ORDER BY total_marks DESC
+             LIMIT :limit`,
+            {
+                replacements: { centerId, limit },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        const data = (Array.isArray(rows) ? rows : []).map((r) => ({
+            id: r.id,
+            name: [r.firstname_txt, r.lastname_txt].filter(Boolean).join(" ") || r.username,
+            username: r.username,
+            scoreOrCgpa: Number(r.total_marks) || 0,
+        }));
+
+        res.status(200).json({ message: "Top students fetched", data });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching top students: " + err.message });
+    }
+};
+
+export const getTeacherAverageResultsOverExaminations = async (req, res) => {
+    try {
+        const userId = parseInt(req.user.id, 10);
+        const centerId = req.user.center_fk_id;
+        const checkerUser = JSON.stringify([userId]);
+
+        if (!centerId) {
+            return res.status(200).json({
+                message: "Teacher has no assigned center",
+                data: [],
+            });
+        }
+
+        const rows = await sequelize.query(
+            `${teacherAssignedExamsCte}
+             SELECT
+                DATE(e."exam_startTime_ts") AS date,
+                ROUND(AVG(sam.marks_obtained)::numeric, 2) AS "averageScore"
+             FROM public."StudentAnswerMarks" sam
+             JOIN public."User" u ON u.id = sam.stud_user_fk_id
+             LEFT JOIN public.examinations e_direct ON e_direct.id = sam.exam_fk_id
+             LEFT JOIN public."ExaminationSubject" es_direct ON es_direct.id = sam.subject_fk_id
+             LEFT JOIN public.examinations e_subject ON e_subject.id = es_direct.exam_fk_id
+             LEFT JOIN public."StudentQuestionAnswer" sqa ON sqa.id = sam.stud_answer_fk_id
+             LEFT JOIN public."PaperQuestion" pq ON pq.id = sqa.exam_question_fk_id
+             LEFT JOIN public."SubjectPaper" sp ON sp.id = pq.paper_fk_id
+             LEFT JOIN public."ExaminationSubject" es_chain ON es_chain.id = sp.subject_fk_id
+             LEFT JOIN public.examinations e_chain ON e_chain.id = es_chain.exam_fk_id
+             JOIN public.examinations e ON e.id = COALESCE(e_direct.id, e_subject.id, e_chain.id)
+             JOIN assigned_exams ae ON ae.exam_id = e.id
+             WHERE u.role = 'STUDENT'
+               AND u.is_active = true
+               AND u.center_fk_id = :centerId
+             GROUP BY DATE(e."exam_startTime_ts")
+             ORDER BY date ASC`,
+            {
+                replacements: { userId, checkerUser, centerId },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        const data = (Array.isArray(rows) ? rows : []).map((r) => ({
+            date: r.date ? (r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10)) : "",
+            averageScore: Number(r.averageScore) || 0,
+        }));
+
+        res.status(200).json({
+            message: "Average results over examinations fetched",
+            data,
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching average results trend: " + err.message });
     }
 };

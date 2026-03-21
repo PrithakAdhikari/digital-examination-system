@@ -181,3 +181,21 @@ export function useActivateUser() {
     },
   });
 }
+
+export function useAnswersBySubject(subjectId) {
+  return useQuery({
+    queryKey: adminKeys.answersBySubject(subjectId),
+    queryFn: () => adminApi.getAnswersBySubject(subjectId),
+    enabled: !!subjectId,
+  });
+}
+
+export function useAssignBulkStudents() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.assignBulkStudents,
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: adminKeys.answersBySubject(variables.subject_fk_id) });
+    },
+  });
+}
