@@ -18,7 +18,7 @@ router.get("/test", verifyHmacSignature, (req, res) => {
 });
 
 router.get("/examinations", verifyHmacSignature, getExaminationsForProxy);
-router.get("/get-questions/:examId", verifyHmacSignature, getQuestionsForProxy);
+router.get("/get-questions/:subjectId", verifyHmacSignature, getQuestionsForProxy);
 router.post("/bulk-create-answers", verifyHmacSignature, bulkCreateStudentAnswers);
 
 export default router;

@@ -10,6 +10,9 @@ import ExaminationsPage from "./pages/ExaminationsPage.jsx";
 import MonitorPage from "./pages/MonitorPage.jsx";
 import CodeTesterPage from "./pages/CodeTesterPage.jsx";
 import ClientsPage from "./pages/ClientsPage.jsx";
+import SyncQueuePage from "./pages/SyncQueuePage.jsx";
+import { Toaster } from "react-hot-toast";
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,6 +29,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider>
+          <Toaster position="top-right" reverseOrder={false} />
           <BrowserRouter>
             <Routes>
               {/* Public Routes */}
@@ -46,6 +50,8 @@ function App() {
                 <Route path="monitor" element={<MonitorPage />} />
                 <Route path="code-tester" element={<CodeTesterPage />} />
                 <Route path="clients" element={<ClientsPage />} />
+                <Route path="sync-queue" element={<SyncQueuePage />} />
+
                 {/* Future protected routes can go here */}
               </Route>
 

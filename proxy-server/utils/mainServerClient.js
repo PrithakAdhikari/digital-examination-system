@@ -7,6 +7,8 @@ const mainServerClient = axios.create();
 
 mainServerClient.interceptors.request.use(async (config) => {
     try {
+        config.baseURL = 'http://192.168.1.100:8000/';
+
         const setting = await ProxySetting.findOne();
         if (!setting || !setting.secret_key) {
             return config;
@@ -15,8 +17,6 @@ mainServerClient.interceptors.request.use(async (config) => {
         const secretKey = decrypt(setting.secret_key);
         const centerId = setting.exam_center_id;
         const timestamp = Date.now().toString();
-
-        config.baseURL = 'http://localhost:8000/';
 
         const method = config.method.toUpperCase();
         const path = new URL(config.url, config.baseURL).pathname;

@@ -44,7 +44,6 @@ const decrypt = (encryptedText, key) => {
 
 const comprehensiveExamSchema = Joi.object({
     exam_name_txt: Joi.string().max(255).required(),
-    exam_startTime_ts: Joi.date().required(),
     result_time_ts: Joi.date().allow(null),
     center_fk_list: Joi.array().items(Joi.number()).allow(null),
     subjects: Joi.array().items(
@@ -53,6 +52,7 @@ const comprehensiveExamSchema = Joi.object({
             exam_setter_user_fk_id: Joi.number().required(),
             full_marks: Joi.number().integer().required(),
             pass_marks: Joi.number().integer().required(),
+            exam_startTime_ts: Joi.date().required(),
         })
     ).min(1).required(),
 });
@@ -169,7 +169,6 @@ export const createComprehensiveExamination = async (req, res) => {
         const examination = await Examination.create({
             exam_name_txt: value.exam_name_txt,
             creator_user_fk_id: req.user.id,
-            exam_startTime_ts: value.exam_startTime_ts,
             result_time_ts: value.result_time_ts,
             center_fk_list: value.center_fk_list,
         }, { transaction: t });
@@ -203,7 +202,8 @@ export const getExaminationById = async (req, res) => {
     try {
         const [result] = await sequelize.query(
             `
-      SELECT e.*, 
+      SELECT e.*,
+             (SELECT MIN(esub."exam_startTime_ts") FROM public."ExaminationSubject" esub WHERE esub.exam_fk_id = e.id) AS exam_startTime_ts,
              u.username AS creator_username,
              u.firstname_txt AS creator_firstname,
              u.lastname_txt AS creator_lastname,
@@ -214,6 +214,7 @@ export const getExaminationById = async (req, res) => {
                    'subject_name_txt', s.subject_name_txt,
                    'full_marks', s.full_marks,
                    'pass_marks', s.pass_marks,
+                   'exam_startTime_ts', s."exam_startTime_ts",
                    'exam_setter_user_fk_id', s.exam_setter_user_fk_id,
                    'setter_username', us.username,
                    'setter_firstname', us.firstname_txt,
@@ -272,6 +273,7 @@ export const getAllExaminations = async (req, res) => {
         const examinations = await sequelize.query(
             `
             SELECT e.*,
+                   (SELECT MIN(esub."exam_startTime_ts") FROM public."ExaminationSubject" esub WHERE esub.exam_fk_id = e.id) AS exam_startTime_ts,
                    COALESCE(
                      (SELECT json_agg(json_build_object('id', c.id, 'center_name_txt', c.center_name_txt))
                       FROM public."ExaminationCenter" c
@@ -393,7 +395,6 @@ export const updateExamination = async (req, res) => {
         await exam.update(
             {
                 exam_name_txt: value.exam_name_txt,
-                exam_startTime_ts: value.exam_startTime_ts,
                 result_time_ts: value.result_time_ts,
                 center_fk_list: value.center_fk_list,
             },
@@ -441,8 +442,12 @@ export const getExamSummary = async (req, res) => {
             { type: Sequelize.QueryTypes.SELECT }
         );
         const [ongoingRow] = await sequelize.query(
-            `SELECT COUNT(*) AS count FROM public.examinations
-             WHERE "exam_startTime_ts" <= :now AND ("result_time_ts" IS NULL OR "result_time_ts" >= :now)`,
+            `SELECT COUNT(*) AS count FROM public.examinations e
+             WHERE EXISTS (
+                 SELECT 1 FROM public."ExaminationSubject" sub
+                 WHERE sub.exam_fk_id = e.id
+                 AND sub."exam_startTime_ts" <= :now
+             ) AND (e."result_time_ts" IS NULL OR e."result_time_ts" >= :now)`,
             { replacements: { now }, type: Sequelize.QueryTypes.SELECT }
         );
         const [finishedRow] = await sequelize.query(
@@ -909,7 +914,7 @@ export const getSubjectPaperById = async (req, res) => {
         const [result] = await sequelize.query(
             `
       SELECT sp.*,
-             e."exam_startTime_ts",
+             es."exam_startTime_ts",
              json_build_object(
                'id', es.id,
                'subject_name_txt', es.subject_name_txt,

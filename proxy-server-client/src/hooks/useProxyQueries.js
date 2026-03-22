@@ -46,3 +46,26 @@ export function useRemoveExamination() {
     mutationFn: proxyApi.removeExamination,
   });
 }
+
+export function useSyncAnswers() {
+  return useMutation({
+    mutationFn: proxyApi.syncAnswers,
+  });
+}
+
+export function useUnsyncedAnswers() {
+  return useQuery({
+    queryKey: ["unsynced-answers"],
+    queryFn: proxyApi.getUnsyncedAnswers,
+    refetchInterval: 10000, // Refetch every 10s to keep list updated
+  });
+}
+
+export function useUnsyncedCount() {
+  return useQuery({
+    queryKey: ["unsynced-count"],
+    queryFn: proxyApi.getUnsyncedCount,
+    refetchInterval: 10000,
+  });
+}
+

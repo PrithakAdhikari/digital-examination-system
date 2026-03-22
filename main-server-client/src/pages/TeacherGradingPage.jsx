@@ -166,9 +166,9 @@ export default function TeacherGradingPage() {
                   {currentQ.question_type === "MCQ" ? (
                     <div className="flex items-center gap-3 p-6 bg-base-200 rounded-2xl w-fit">
                        <span className="text-xs font-bold opacity-40 uppercase tracking-widest">Picked</span>
-                       <span className="text-4xl font-black">{String.fromCharCode(64 + Number(currentQ.stud_answer.selected_option))}</span>
+                       <span className="text-4xl font-black">{String.fromCharCode(64 + Number(currentQ.stud_answer))}</span>
                     </div>
-                  ) : currentQ.stud_answer.answer_txt}
+                  ) : currentQ.stud_answer}
                 </div>
             ) : (
                 <div className="h-full flex items-center justify-center opacity-20 italic">

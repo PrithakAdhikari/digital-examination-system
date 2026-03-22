@@ -83,7 +83,7 @@ export const getAllQuestionsToSet = async (req, res) => {
                 es.pass_marks,
                 e.id AS "exam_id",
                 e.exam_name_txt,
-                e."exam_startTime_ts"
+                es."exam_startTime_ts"
             FROM public."ExaminationSubject" es
             JOIN public.examinations e ON es.exam_fk_id = e.id
             WHERE es.exam_setter_user_fk_id = :userId
@@ -92,7 +92,7 @@ export const getAllQuestionsToSet = async (req, res) => {
                   FROM public."SubjectPaper" sp
                   WHERE sp.subject_fk_id = es.id
               )
-            ORDER BY e."exam_startTime_ts" ASC;
+            ORDER BY es."exam_startTime_ts" ASC;
             `,
             {
                 replacements: { userId },
@@ -323,19 +323,19 @@ export const getAnswerById = async (req, res) => {
         const { answer_id } = req.params;
         const userId = req.user.id;
 
-        // Fetch answer and its associated paper key info
+        // Fetch answer and its associated encryption key info
         const [result] = await sequelize.query(
             `
             SELECT 
                 sqa.id AS "answer_id",
                 sqa.stud_answer,
-                eat.aes_256_key AS "encrypted_paper_key",
+                eat.aes_256_key AS "encrypted_answer_key",
                 pq.id AS "question_id",
                 sp.subject_fk_id
             FROM public."StudentQuestionAnswer" sqa
             JOIN public."PaperQuestion" pq ON sqa.exam_question_fk_id = pq.id
             JOIN public."SubjectPaper" sp ON pq.paper_fk_id = sp.id
-            LEFT JOIN public."ExamAnswerToken" eat ON pq.id = eat.question_fk_id
+            LEFT JOIN public."ExamAnswerToken" eat ON sqa.id = eat.answer_fk_id
             WHERE sqa.id = :answer_id;
             `,
             {
@@ -364,7 +364,7 @@ export const getAnswerById = async (req, res) => {
             return res.status(403).json({ error: "Forbidden: You are not an assigned checker for this subject." });
         }
 
-        if (!result.encrypted_paper_key) {
+        if (!result.encrypted_answer_key) {
             return res.status(200).json({
                 message: "Answer fetched (no encryption found)",
                 data: {
@@ -374,24 +374,20 @@ export const getAnswerById = async (req, res) => {
             });
         }
 
-        // Decrypt the paper key using master key
+        // Decrypt the answer key using master key
         const masterKeyHex = process.env.AES_MASTER_KEY;
-        const paperKeyHex = decrypt(result.encrypted_paper_key, Buffer.from(masterKeyHex, "hex"));
-        const paperKey = Buffer.from(paperKeyHex, "hex");
+        const answerKeyHex = decrypt(result.encrypted_answer_key, Buffer.from(masterKeyHex, "hex"));
+        const answerKey = Buffer.from(answerKeyHex, "hex");
 
         // Decrypt the student answer
-        // Note: stud_answer is expected to be an object or string depending on question type
-        // If it's stored encrypted, we decrypt it.
         let decryptedAnswer = result.stud_answer;
         if (typeof result.stud_answer === "string") {
-            decryptedAnswer = decrypt(result.stud_answer, paperKey);
-        } else if (result.stud_answer && typeof result.stud_answer === "object") {
-            // For MCQ or structured answers, we might need to decrypt individual fields
-            // Assuming for now it's a string or the whole object is serialized string
-            // Let's handle common cases
-            if (result.stud_answer.text) {
-                decryptedAnswer.text = decrypt(result.stud_answer.text, paperKey);
-            }
+            decryptedAnswer = decrypt(result.stud_answer, answerKey);
+        } else if (result.stud_answer && typeof result.stud_answer === "object" && result.stud_answer.text) {
+            decryptedAnswer = {
+                ...result.stud_answer,
+                text: decrypt(result.stud_answer.text, answerKey),
+            };
         }
 
         res.status(200).json({
@@ -442,7 +438,8 @@ export const getStudentAnswersBySubject = async (req, res) => {
                 sqa.id AS "answer_id",
                 sqa.stud_answer,
                 sqa."createdAt_ts" AS "submitted_at",
-                eat.aes_256_key AS "encrypted_paper_key",
+                eat_q.aes_256_key AS "encrypted_question_key",
+                eat_a.aes_256_key AS "encrypted_answer_key",
                 sam.marks_obtained,
                 sam.feedback
             FROM public."PaperQuestion" pq
@@ -450,7 +447,8 @@ export const getStudentAnswersBySubject = async (req, res) => {
             LEFT JOIN public."StudentQuestionAnswer" sqa 
                 ON sqa.exam_question_fk_id = pq.id 
                 AND sqa.stud_user_fk_id = :student_user_fk_id
-            LEFT JOIN public."ExamAnswerToken" eat ON pq.id = eat.question_fk_id
+            LEFT JOIN public."ExamAnswerToken" eat_q ON pq.id = eat_q.question_fk_id
+            LEFT JOIN public."ExamAnswerToken" eat_a ON sqa.id = eat_a.answer_fk_id
             LEFT JOIN public."StudentAnswerMarks" sam ON sam.stud_answer_fk_id = sqa.id
             WHERE sp.subject_fk_id = :subject_fk_id
             ORDER BY pq.id ASC;
@@ -470,36 +468,52 @@ export const getStudentAnswersBySubject = async (req, res) => {
         }
 
         const decryptedAnswers = answers.map((row) => {
-            if (!row.encrypted_paper_key) {
-                return row;
+            let questionContent = {
+                question_txt: row.question_txt,
+                option1: row.option1,
+                option2: row.option2,
+                option3: row.option3,
+                option4: row.option4,
+                correct_option: row.correct_option
+            };
+
+            // Decrypt Question Content
+            if (row.encrypted_question_key) {
+                const paperKeyHex = decrypt(row.encrypted_question_key, Buffer.from(masterKeyHex, "hex"));
+                const paperKey = Buffer.from(paperKeyHex, "hex");
+                
+                questionContent.question_txt = row.question_txt ? decrypt(row.question_txt, paperKey) : row.question_txt;
+                questionContent.option1 = row.option1 ? decrypt(row.option1, paperKey) : null;
+                questionContent.option2 = row.option2 ? decrypt(row.option2, paperKey) : null;
+                questionContent.option3 = row.option3 ? decrypt(row.option3, paperKey) : null;
+                questionContent.option4 = row.option4 ? decrypt(row.option4, paperKey) : null;
+                questionContent.correct_option = row.correct_option ? Number(decrypt(row.correct_option, paperKey)) : null;
             }
 
-            const paperKeyHex = decrypt(row.encrypted_paper_key, Buffer.from(masterKeyHex, "hex"));
-            const paperKey = Buffer.from(paperKeyHex, "hex");
-
+            // Decrypt Student Answer
             let studAnswer = row.stud_answer;
-            if (typeof studAnswer === "string") {
-                studAnswer = decrypt(studAnswer, paperKey);
-            } else if (studAnswer && typeof studAnswer === "object" && studAnswer.text) {
-                studAnswer = {
-                    ...studAnswer,
-                    text: decrypt(studAnswer.text, paperKey),
-                };
+            if (row.encrypted_answer_key) {
+                const answerKeyHex = decrypt(row.encrypted_answer_key, Buffer.from(masterKeyHex, "hex"));
+                const answerKey = Buffer.from(answerKeyHex, "hex");
+
+                if (typeof studAnswer === "string") {
+                    studAnswer = decrypt(studAnswer, answerKey);
+                } else if (studAnswer && typeof studAnswer === "object" && studAnswer.text) {
+                    studAnswer = {
+                        ...studAnswer,
+                        text: decrypt(studAnswer.text, answerKey),
+                    };
+                }
             }
+
+            const { encrypted_question_key, encrypted_answer_key, ...rowData } = row;
 
             return {
-                ...row,
-                question_txt: row.question_txt ? decrypt(row.question_txt, paperKey) : row.question_txt,
-                option1: row.option1 ? decrypt(row.option1, paperKey) : null,
-                option2: row.option2 ? decrypt(row.option2, paperKey) : null,
-                option3: row.option3 ? decrypt(row.option3, paperKey) : null,
-                option4: row.option4 ? decrypt(row.option4, paperKey) : null,
-                correct_option: row.correct_option ? Number(decrypt(row.correct_option, paperKey)) : null,
-                full_marks: row.full_marks,
+                ...rowData,
+                ...questionContent,
                 stud_answer: studAnswer,
                 marks_obtained: row.marks_obtained,
                 feedback: row.feedback,
-                encrypted_paper_key: undefined,
             };
         });
 
@@ -728,7 +742,7 @@ export const getStudentById = async (req, res) => {
                 es.full_marks,
                 es.pass_marks,
                 e.exam_name_txt,
-                e."exam_startTime_ts",
+                es."exam_startTime_ts",
                 sp.exam_batch_year
             FROM public."StudentAnswerMarks" sam
             JOIN public."StudentQuestionAnswer" sqa ON sam.stud_answer_fk_id = sqa.id
@@ -737,7 +751,7 @@ export const getStudentById = async (req, res) => {
             JOIN public."ExaminationSubject" es ON sp.subject_fk_id = es.id
             JOIN public.examinations e ON es.exam_fk_id = e.id
             WHERE sam.stud_user_fk_id = :student_id
-            ORDER BY e."exam_startTime_ts" DESC;
+            ORDER BY es."exam_startTime_ts" DESC;
             `,
             {
                 replacements: { student_id },
@@ -812,6 +826,7 @@ export const getAllStudentInTeacherCenter = async (req, res) => {
 const teacherAssignedExamsCte = `
     WITH assigned_exams AS (
     SELECT es.exam_fk_id AS exam_id,
+           MIN(es."exam_startTime_ts") AS "exam_startTime_ts",
            BOOL_OR(es.exam_setter_user_fk_id = :userId) AS is_setter,
            BOOL_OR(sp.paper_checkers_list @> :checkerUser::jsonb) AS is_checker
     FROM public."ExaminationSubject" es
@@ -839,11 +854,11 @@ export const getTeacherExamSummary = async (req, res) => {
                     WHERE e."result_time_ts" IS NOT NULL AND e."result_time_ts" < :now
                 ) AS finished,
                 COUNT(*) FILTER (
-                    WHERE e."exam_startTime_ts" <= :now
+                    WHERE ae."exam_startTime_ts" <= :now
                       AND (e."result_time_ts" IS NULL OR e."result_time_ts" >= :now)
                 ) AS ongoing,
                 COUNT(*) FILTER (
-                    WHERE e."exam_startTime_ts" > :now
+                    WHERE ae."exam_startTime_ts" > :now
                 ) AS upcoming
              FROM assigned_exams ae
              JOIN public.examinations e ON e.id = ae.exam_id`,
@@ -879,7 +894,7 @@ export const getTeacherUpcomingExaminations = async (req, res) => {
              SELECT
                 e.id AS "examId",
                 e.exam_name_txt AS "examName",
-                e."exam_startTime_ts" AS "examStartTime",
+                ae."exam_startTime_ts" AS "examStartTime",
                 e."result_time_ts" AS "resultTime",
                 CASE
                     WHEN ae.is_setter AND ae.is_checker THEN 'SETTER_AND_CHECKER'
@@ -888,8 +903,8 @@ export const getTeacherUpcomingExaminations = async (req, res) => {
                 END AS "assignedAs"
             FROM assigned_exams ae
             JOIN public.examinations e ON e.id = ae.exam_id
-            WHERE e."exam_startTime_ts" > :now
-            ORDER BY e."exam_startTime_ts" ASC
+            WHERE ae."exam_startTime_ts" > :now
+            ORDER BY ae."exam_startTime_ts" ASC
             LIMIT :limit`,
             {
                 replacements: { userId, checkerUser, now, limit },
@@ -967,8 +982,8 @@ export const getTeacherAverageResultsOverExaminations = async (req, res) => {
 
         const rows = await sequelize.query(
             `${teacherAssignedExamsCte}
-             SELECT
-                DATE(e."exam_startTime_ts") AS date,
+              SELECT
+                DATE(ae."exam_startTime_ts") AS date,
                 ROUND(AVG(sam.marks_obtained)::numeric, 2) AS "averageScore"
              FROM public."StudentAnswerMarks" sam
              JOIN public."User" u ON u.id = sam.stud_user_fk_id
@@ -985,7 +1000,7 @@ export const getTeacherAverageResultsOverExaminations = async (req, res) => {
              WHERE u.role = 'STUDENT'
                AND u.is_active = true
                AND u.center_fk_id = :centerId
-             GROUP BY DATE(e."exam_startTime_ts")
+             GROUP BY DATE(ae."exam_startTime_ts")
              ORDER BY date ASC`,
             {
                 replacements: { userId, checkerUser, centerId },

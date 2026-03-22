@@ -47,6 +47,9 @@ const setupAssociations = () => {
   PaperQuestion.hasOne(ExamAnswerToken, { foreignKey: "question_fk_id", as: "answerKey" });
   ExamAnswerToken.belongsTo(PaperQuestion, { foreignKey: "question_fk_id", as: "question" });
 
+  StudentQuestionAnswer.hasOne(ExamAnswerToken, { foreignKey: "answer_fk_id", as: "token" });
+  ExamAnswerToken.belongsTo(StudentQuestionAnswer, { foreignKey: "answer_fk_id", as: "answer" });
+
   // --- Student Answer & Marks Relationships ---
   StudentQuestionAnswer.belongsTo(User, { foreignKey: "stud_user_fk_id", as: "student" });
   User.hasMany(StudentQuestionAnswer, { foreignKey: "stud_user_fk_id", as: "answers" });

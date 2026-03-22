@@ -16,8 +16,8 @@ export function getExaminations() {
     return axiosInstance.get("/examinations").then((res) => res.data);
 }
 
-export function selectExamination({ examId, startTime }) {
-    return axiosInstance.post("/select-examination", { examId, startTime }).then((res) => res.data);
+export function selectExamination({ examId, subjectId, startTime }) {
+    return axiosInstance.post("/select-examination", { examId, subjectId, startTime }).then((res) => res.data);
 }
 
 export function removeExamination() {
@@ -39,3 +39,16 @@ export function getClients() {
 export function deleteClient(clientId) {
     return axiosInstance.delete(`/clients/${clientId}`).then((res) => res.data);
 }
+
+export function syncAnswers() {
+    return axiosInstance.post("/sync-answers").then((res) => res.data);
+}
+
+export function getUnsyncedAnswers() {
+    return axiosInstance.get("/unsynced-answers").then((res) => res.data);
+}
+
+export function getUnsyncedCount() {
+    return axiosInstance.get("/unsynced-count").then((res) => res.data);
+}
+

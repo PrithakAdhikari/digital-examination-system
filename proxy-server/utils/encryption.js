@@ -47,3 +47,27 @@ export const decrypt = (encryptedWithIvAndTag) => {
     
     return decrypted;
 };
+
+/**
+ * Generates an HMAC signature for the given text
+ * @param {string} text 
+ * @returns {string} hex signature
+ */
+export const generateSignature = (text) => {
+    if (!text) return null;
+    return crypto.createHmac("sha256", process.env.SECRET_KEY || "proxy_default_hmac_secret")
+        .update(text)
+        .digest("hex");
+};
+
+/**
+ * Verifies an HMAC signature
+ * @param {string} text 
+ * @param {string} signature 
+ * @returns {boolean}
+ */
+export const verifySignature = (text, signature) => {
+    if (!text || !signature) return false;
+    const expected = generateSignature(text);
+    return crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(signature, "hex"));
+};

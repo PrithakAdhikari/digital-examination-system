@@ -1,4 +1,14 @@
 import { NavLink } from "react-router-dom";
+import { useUnsyncedCount } from "../../hooks/useProxyQueries.js";
+import { 
+  Monitor, 
+  LayoutDashboard, 
+  Terminal, 
+  Cpu, 
+  Smartphone, 
+  Share2 
+} from "lucide-react";
+
 
 const navItems = [
   { 
@@ -50,15 +60,23 @@ const navItems = [
     end: false, 
     label: "Clients",
     note: "PC Monitoring",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 21h6l-.75-4M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    )
+    icon: <Smartphone className="h-5 w-5" />
+  },
+  { 
+    to: "/sync-queue", 
+    end: false, 
+    label: "Sync Queue",
+    note: "Local DB Status",
+    badge: true,
+    icon: <Share2 className="h-5 w-5" />
   }
 ];
 
+
 export default function Sidebar({ onLinkClick, onClose }) {
+  const { data: countData } = useUnsyncedCount();
+  const unsyncedCount = countData?.count || 0;
+
   return (
     <div className="flex flex-col h-full py-6 px-4 w-full">
       <div className="px-2 mb-8 flex justify-between items-center">
@@ -87,7 +105,7 @@ export default function Sidebar({ onLinkClick, onClose }) {
         <div className="px-2 mb-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-base-content/40 mb-4 px-2">Main Menu</p>
           <ul className="menu menu-md gap-1.5 p-0">
-            {navItems.map(({ to, end, label, note, icon }) => (
+            {navItems.map(({ to, end, label, note, icon, badge }) => (
               <li key={to}>
                 <NavLink
                   to={to}
@@ -101,17 +119,26 @@ export default function Sidebar({ onLinkClick, onClose }) {
                     }`
                   }
                 >
-                  <span className={`flex-shrink-0 transition-transform duration-300 group-hover:scale-110`}>
+                  <span className={`shrink-0 transition-transform duration-300 group-hover:scale-110`}>
                     {icon}
                   </span>
-                  <div className="flex flex-col">
-                    <span className="text-sm">{label}</span>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                       <span className="text-sm truncate">{label}</span>
+                       {badge && unsyncedCount > 0 && (
+                         <span className={`badge badge-sm badge-success font-black border-none animate-pulse-subtle`}>
+                           {unsyncedCount}
+                         </span>
+                       )}
+                    </div>
                     {note && (
-                      <span className="text-[10px] font-normal leading-tight opacity-60">
+                      <span className="text-[10px] font-normal leading-tight opacity-60 truncate">
                         {note}
                       </span>
                     )}
                   </div>
+
+
                 </NavLink>
               </li>
             ))}
@@ -125,7 +152,7 @@ export default function Sidebar({ onLinkClick, onClose }) {
           <p className="text-[10px] opacity-60 leading-relaxed">Proxy node is active and monitoring for examinations.</p>
         </div>
         <div className="flex items-center gap-3 px-2 py-2 group cursor-default">
-          <div className="w-9 h-9 rounded-xl bg-neutral text-neutral-content flex items-center justify-center overflow-hidden shadow-inner flex-shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-neutral text-neutral-content flex items-center justify-center overflow-hidden shadow-inner shrink-0">
             <span className="text-[10px] font-bold">PT</span>
           </div>
           <div className="flex flex-col min-w-0">

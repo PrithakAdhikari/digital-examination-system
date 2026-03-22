@@ -18,8 +18,12 @@ const StudentAnswer = sequelizeSqlite.define(
       allowNull: false,
     },
     stud_answer: {
-      type: DataTypes.JSON,
+      type: DataTypes.TEXT, // Using TEXT for encrypted hex string
       allowNull: false,
+    },
+    hmac_signature: {
+      type: DataTypes.STRING,
+      allowNull: true, // Allow true for transition if needed, but will populate
     },
     exam_fk_id: {
       type: DataTypes.INTEGER,

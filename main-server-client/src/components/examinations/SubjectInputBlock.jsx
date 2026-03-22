@@ -1,4 +1,6 @@
 import { useUsers } from "../../hooks/useAdminQueries.js";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 export default function SubjectInputBlock({ subject, index, onChange, onRemove, canRemove }) {
   const { data: usersData } = useUsers({ role: "TEACHER" });
@@ -133,6 +135,19 @@ export default function SubjectInputBlock({ subject, index, onChange, onRemove, 
               onChange={(e) => handleChange("pass_marks", e.target.value === "" ? "" : Number(e.target.value))}
             />
           </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-black uppercase text-base-content/30 tracking-widest mb-1.5 block ml-1">Start Date & Time</label>
+          <DatePicker
+            selected={subject.exam_startTime_ts ? new Date(subject.exam_startTime_ts) : null}
+            onChange={(date) => handleChange("exam_startTime_ts", date)}
+            showTimeSelect
+            dateFormat="MMMM d, yyyy h:mm aa"
+            placeholderText="Select start time"
+            className="input input-bordered w-full bg-base-100 focus:bg-base-100 transition-all rounded-xl border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/5 font-bold text-sm h-11"
+            required
+          />
         </div>
       </div>
     </div>

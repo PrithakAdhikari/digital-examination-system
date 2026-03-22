@@ -14,6 +14,7 @@ export const getExaminations = async (req, res) => {
         res.status(200).json(response.data);
     } catch (err) {
         console.error("Error fetching examinations from main server:", err.message);
+        console.log(err);
         res.status(500).json({ error: "Failed to fetch examinations from main server: " + err.message });
     }
 };
@@ -22,9 +23,9 @@ export const getExaminations = async (req, res) => {
  * Selects an examination and starts a cron job to fetch questions.
  */
 export const selectExamination = async (req, res) => {
-    const { examId, startTime } = req.body;
-    if (!examId || !startTime) {
-        return res.status(400).json({ error: "examId and startTime are required" });
+    const { examId, subjectId, startTime } = req.body;
+    if (!examId || !subjectId || !startTime) {
+        return res.status(400).json({ error: "examId, subjectId and startTime are required" });
     }
 
     try {
@@ -35,6 +36,7 @@ export const selectExamination = async (req, res) => {
 
         await setting.update({ 
             selected_examination_id: examId,
+            selected_subject_id: subjectId,
             selected_examination_start_time: startTime
         });
 
@@ -66,8 +68,8 @@ export const fetchAndStoreQuestions = async (examId) => {
             return;
         }
 
-        console.log(`[Cron] Attempting to fetch questions for examination ${examId}...`);
-        const response = await mainServerClient.get(`/proxy/get-questions/${examId}`);
+        console.log(`[Cron] Attempting to fetch questions for subject ${setting.selected_subject_id}...`);
+        const response = await mainServerClient.get(`/proxy/get-questions/${setting.selected_subject_id}`);
         
         if (response.status === 200 && response.data.decrypted) {
             const questions = response.data.data;
@@ -77,12 +79,15 @@ export const fetchAndStoreQuestions = async (examId) => {
                 await Question.upsert({
                     id: q.id,
                     paper_fk_id: q.paper_fk_id,
+                    subject_fk_id: q.subject_fk_id,
+                    exam_fk_id: q.exam_fk_id,
                     question_txt: q.question_txt,
                     question_type: q.question_type,
                     option1: q.option1,
                     option2: q.option2,
                     option3: q.option3,
                     option4: q.option4,
+                    full_marks: q.full_marks,
                 });
             }
 
@@ -145,8 +150,8 @@ export const initializeCronJobs = async () => {
             
             // Check if questions already exist
             const count = await Question.count();
-            if (count === 0) {
-                console.log(`[Startup] Recalculating cron job for selected exam ${examId}.`);
+            if (count === 0 && setting.selected_subject_id) {
+                console.log(`[Startup] Recalculating cron job for selected subject ${setting.selected_subject_id}.`);
                 startQuestionFetchCron(examId);
             } else {
                 console.log(`[Startup] Questions already exist locally for exam ${examId}. Not starting cron.`);
@@ -171,6 +176,7 @@ export const removeExamination = async (req, res) => {
         // Update settings
         await setting.update({ 
             selected_examination_id: null,
+            selected_subject_id: null,
             selected_examination_start_time: null
         });
 

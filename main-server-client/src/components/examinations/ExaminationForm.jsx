@@ -9,6 +9,7 @@ const emptySubject = () => ({
   exam_setter_user_fk_id: "",
   full_marks: "",
   pass_marks: "",
+  exam_startTime_ts: null,
 });
 
 export default function ExaminationForm({
@@ -23,7 +24,6 @@ export default function ExaminationForm({
 
   const getDefaultForm = () => ({
     exam_name_txt: "",
-    exam_startTime_ts: null,
     result_time_ts: null,
     center_fk_list: [],
     subjects: [emptySubject()],
@@ -36,9 +36,6 @@ export default function ExaminationForm({
       : [];
     return {
       exam_name_txt: examination?.exam_name_txt ?? "",
-      exam_startTime_ts: examination?.exam_startTime_ts
-        ? new Date(examination.exam_startTime_ts)
-        : null,
       result_time_ts: examination?.result_time_ts
         ? new Date(examination.result_time_ts)
         : null,
@@ -50,6 +47,7 @@ export default function ExaminationForm({
               exam_setter_user_fk_id: s.exam_setter_user_fk_id ?? "",
               full_marks: s.full_marks ?? "",
               pass_marks: s.pass_marks ?? "",
+              exam_startTime_ts: s.exam_startTime_ts ? new Date(s.exam_startTime_ts) : null,
             }))
           : [emptySubject()],
     };
@@ -102,7 +100,6 @@ export default function ExaminationForm({
     e.preventDefault();
     const payload = {
       exam_name_txt: form.exam_name_txt.trim(),
-      exam_startTime_ts: form.exam_startTime_ts ? form.exam_startTime_ts.toISOString() : null,
       result_time_ts: form.result_time_ts ? form.result_time_ts.toISOString() : null,
       center_fk_list: form.center_fk_list?.length ? form.center_fk_list : null,
       subjects: form.subjects
@@ -112,6 +109,7 @@ export default function ExaminationForm({
           exam_setter_user_fk_id: Number(s.exam_setter_user_fk_id),
           full_marks: Number(s.full_marks) || 0,
           pass_marks: Number(s.pass_marks) || 0,
+          exam_startTime_ts: s.exam_startTime_ts ? s.exam_startTime_ts.toISOString() : null,
         })),
     };
     if (payload.subjects.length < 1) return;
@@ -150,18 +148,6 @@ export default function ExaminationForm({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest mb-2 block ml-1">Starting Date & Time</label>
-                  <DatePicker
-                    selected={form.exam_startTime_ts}
-                    onChange={(date) => setForm((p) => ({ ...p, exam_startTime_ts: date }))}
-                    showTimeSelect
-                    dateFormat="MMMM d, yyyy h:mm aa"
-                    placeholderText="Select start time"
-                    className="input input-bordered w-full bg-base-100/50 focus:bg-base-100 transition-all rounded-xl border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10 font-medium"
-                    required
-                  />
-                </div>
                 <div>
                   <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest mb-2 block ml-1">Result Publication Date</label>
                   <DatePicker

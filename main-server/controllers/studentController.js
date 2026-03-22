@@ -14,12 +14,14 @@ export const getAllExaminations = async (req, res) => {
             SELECT 
                 e.id,
                 e.exam_name_txt,
-                e."exam_startTime_ts",
+                MIN(esub."exam_startTime_ts") AS exam_startTime_ts,
                 e.result_time_ts,
                 es.status
             FROM public.examinations e
             JOIN public."ExamStudent" es ON es.exam_fk_id = e.id
-            WHERE es.student_fk_id = :studentId;
+            LEFT JOIN public."ExaminationSubject" esub ON esub.exam_fk_id = e.id
+            WHERE es.student_fk_id = :studentId
+            GROUP BY e.id, es.status;
             `,
             {
                 replacements: { studentId },
@@ -47,32 +49,52 @@ export const getExaminationById = async (req, res) => {
 
         const [result] = await sequelize.query(
             `
+            WITH SubjectMarks AS (
+                SELECT 
+                    subject_fk_id,
+                    stud_user_fk_id,
+                    SUM(marks_obtained) AS marks_obtained,
+                    string_agg(feedback, ' | ') AS combined_feedback
+                FROM public."StudentAnswerMarks"
+                WHERE stud_user_fk_id = :studentId
+                GROUP BY subject_fk_id, stud_user_fk_id
+            ),
+            SubjectFullMarks AS (
+                SELECT 
+                    sp.subject_fk_id,
+                    SUM(pq.full_marks) AS total_subject_full_marks
+                FROM public."SubjectPaper" sp
+                JOIN public."PaperQuestion" pq ON sp.id = pq.paper_fk_id
+                GROUP BY sp.subject_fk_id
+            )
             SELECT 
                 e.id AS exam_id,
                 e.exam_name_txt,
-                e."exam_startTime_ts",
+                MIN(es."exam_startTime_ts") AS exam_startTime_ts,
                 e.result_time_ts,
                 json_agg(
                     json_build_object(
                         'subject_id', es.id,
                         'subject_name_txt', es.subject_name_txt,
-                        'full_marks', es.full_marks,
+                        'exam_startTime_ts', es."exam_startTime_ts",
+                        'full_marks', COALESCE(sfm.total_subject_full_marks, 0),
                         'pass_marks', es.pass_marks,
-                        'marks_obtained', sam.marks_obtained,
-                        'feedback', sam.feedback,
+                        'marks_obtained', COALESCE(sm.marks_obtained, 0),
+                        'feedback', sm.combined_feedback,
                         'status', CASE 
-                            WHEN sam.marks_obtained IS NULL THEN 'PENDING'
-                            WHEN sam.marks_obtained >= es.pass_marks THEN 'PASS' 
+                            WHEN sm.marks_obtained IS NULL THEN 'PENDING'
+                            WHEN sm.marks_obtained >= es.pass_marks THEN 'PASS' 
                             ELSE 'FAIL' 
                         END
                     )
                 ) AS subjects,
-                SUM(sam.marks_obtained) AS total_marks_obtained,
-                SUM(es.full_marks) AS total_full_marks
+                SUM(COALESCE(sm.marks_obtained, 0)) AS total_marks_obtained,
+                SUM(COALESCE(sfm.total_subject_full_marks, 0)) AS total_full_marks
             FROM public.examinations e
             JOIN public."ExaminationSubject" es ON e.id = es.exam_fk_id
             JOIN public."ExamStudent" est ON e.id = est.exam_fk_id AND est.student_fk_id = :studentId
-            LEFT JOIN public."StudentAnswerMarks" sam ON es.id = sam.subject_fk_id AND sam.stud_user_fk_id = :studentId
+            LEFT JOIN SubjectMarks sm ON es.id = sm.subject_fk_id
+            LEFT JOIN SubjectFullMarks sfm ON es.id = sfm.subject_fk_id
             WHERE e.id = :examId
             GROUP BY e.id;
             `,

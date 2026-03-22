@@ -30,7 +30,7 @@ import {
 } from "./controllers/clientController.js";
 import { runCode } from "./controllers/runCodeController.js";
 import DockerPool from "./utils/DockerPool.js";
-import { submitAnswer, syncAnswersToMain } from "./controllers/answerController.js";
+import { submitAnswer, syncAnswersToMain, getUnsyncedAnswers, getUnsyncedCount } from "./controllers/answerController.js";
 import http from "http";
 
 const PORT = process.env.PORT || 8000;
@@ -84,9 +84,39 @@ app.post("/heartbeat/:client_id", heartbeat);
 app.get("/question-for-client", getQuestionForClient);
 app.get("/clients", getClients);
 app.delete("/clients/:client_id", deleteClient);
+import Client from "./models/Client.js";
+
+// Custom Middleware for Student PC Authentication
+const authenticateStudentPC = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Missing or invalid authorization header." });
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  try {
+    // 1. Try checking if it's a Client UUID first (The Terminal Token)
+    const client = await Client.findOne({ where: { token } });
+    if (client) {
+      req.client = client;
+      return next();
+    }
+
+    // 2. Fallback to JWT Strategy (The Regular User Token)
+    passport.authenticate("jwt", { session: false })(req, res, next);
+  } catch (err) {
+    console.error("Auth error:", err);
+    res.status(500).json({ error: "Authentication internal error" });
+  }
+};
+
 // Answer Routes
-app.post("/submit-answer", passport.authenticate("jwt", { session: false }), submitAnswer);
+app.post("/submit-answer", authenticateStudentPC, submitAnswer);
 app.post("/sync-answers", syncAnswersToMain);
+app.get("/unsynced-answers", getUnsyncedAnswers);
+app.get("/unsynced-count", getUnsyncedCount);
+
 
 // Protected route example
 app.get(
@@ -117,7 +147,7 @@ const runApp = async () => {
   try {
     await sequelizeSqlite.authenticate();
     console.log("SQLite database connected successfully.");
-    await sequelizeSqlite.sync({ alter: true });
+    // await sequelizeSqlite.sync({ alter: true });
     console.log("SQLite database synced.");
 
     // Initialize cron jobs on startup
@@ -130,7 +160,7 @@ const runApp = async () => {
     setInterval(monitorHeartbeats, 10000);
 
     server.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server is running on http://localhost:${PORT}`);
+      console.log(`Server is running on http://192.168.1.100:${PORT}`);
     });
   } catch (err) {
     console.error("Unable to connect to the database:", err);

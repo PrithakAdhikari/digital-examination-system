@@ -29,6 +29,11 @@ const ExaminationSubject = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
     },
+    exam_startTime_ts: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: DataTypes.NOW
+    },
   },
   {
     tableName: "ExaminationSubject",

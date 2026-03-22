@@ -17,10 +17,6 @@ const Examination = sequelize.define(
       type: DataTypes.BIGINT,
       allowNull: false,
     },
-    exam_startTime_ts: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
     result_time_ts: {
       type: DataTypes.DATE,
       allowNull: true,

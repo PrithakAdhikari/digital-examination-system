@@ -5,8 +5,18 @@ import SubjectPaper from "../models/SubjectPaper.js";
 import PaperQuestion from "../models/PaperQuestion.js";
 import ExamAnswerToken from "../models/ExamAnswerToken.js";
 import StudentQuestionAnswer from "../models/StudentQuestionAnswer.js";
+import ExamStudent from "../models/ExamStudent.js";
 import sequelize from "../database.js";
 import { Sequelize } from "sequelize";
+
+// Helper function for AES-256 encryption
+const encrypt = (text, key) => {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(key), iv);
+    let encrypted = cipher.update(text, "utf8", "hex");
+    encrypted += cipher.final("hex");
+    return iv.toString("hex") + ":" + encrypted;
+};
 
 // Helper function for AES-256 decryption (consistent with adminController.js)
 const decrypt = (encryptedText, key) => {
@@ -33,7 +43,19 @@ export const getExaminationsForProxy = async (req, res) => {
 
         const examinations = await sequelize.query(
             `
-            SELECT e.*
+            SELECT e.*,
+                   COALESCE(
+                     (SELECT json_agg(json_build_object(
+                        'id', s.id,
+                        'subject_name_txt', s.subject_name_txt,
+                        'full_marks', s.full_marks,
+                        'pass_marks', s.pass_marks,
+                        'exam_startTime_ts', s."exam_startTime_ts"
+                      ))
+                      FROM public."ExaminationSubject" s
+                      WHERE s.exam_fk_id = e.id),
+                     '[]'
+                   ) AS subjects
             FROM public.examinations e
             WHERE :centerId::text IN (
                 SELECT jsonb_array_elements_text(e.center_fk_list)
@@ -56,15 +78,15 @@ export const getExaminationsForProxy = async (req, res) => {
 };
 
 export const getQuestionsForProxy = async (req, res) => {
-    const { examId } = req.params;
+    const { subjectId } = req.params;
     try {
-        // 1. Fetch the examination to check start time
-        const exam = await Examination.findByPk(examId);
-        if (!exam) {
-            return res.status(404).json({ error: "Examination not found" });
+        // 1. Fetch the subject to check start time
+        const subject = await ExaminationSubject.findByPk(subjectId);
+        if (!subject) {
+            return res.status(404).json({ error: "Subject not found" });
         }
 
-        const startTime = new Date(exam.exam_startTime_ts);
+        const startTime = new Date(subject.exam_startTime_ts);
         const now = new Date();
 
         const isTimeExceeded = now >= startTime;
@@ -72,24 +94,23 @@ export const getQuestionsForProxy = async (req, res) => {
         // 2. Fetch all questions for this examination
         const results = await sequelize.query(
             `
-            SELECT pq.*, 
+            SELECT pq.*, sp.subject_fk_id,
                    eat.aes_256_key as encrypted_key
             FROM public."PaperQuestion" pq
             JOIN public."SubjectPaper" sp ON pq.paper_fk_id = sp.id
-            JOIN public."ExaminationSubject" es ON sp.subject_fk_id = es.id
             LEFT JOIN public."ExamAnswerToken" eat ON pq.id = eat.question_fk_id
-            WHERE es.exam_fk_id = :examId
+            WHERE sp.subject_fk_id = :subjectId
             `,
             {
-                replacements: { examId },
+                replacements: { subjectId },
                 type: Sequelize.QueryTypes.SELECT,
             }
         );
 
         if (!isTimeExceeded) {
             return res.status(403).json({
-                error: "Forbidden: Examination has not started yet. Questions cannot be accessed before the start time.",
-                startTime: exam.exam_startTime_ts
+                error: "Forbidden: Subject examination has not started yet. Questions cannot be accessed before the start time.",
+                startTime: subject.exam_startTime_ts
             });
         }
 
@@ -111,8 +132,11 @@ export const getQuestionsForProxy = async (req, res) => {
             const baseQuestion = {
                 id: q.id,
                 paper_fk_id: q.paper_fk_id,
+                subject_fk_id: q.subject_fk_id,
+                exam_fk_id: subject.exam_fk_id,
                 question_type: q.question_type,
                 question_txt: decrypt(q.question_txt, paperKey),
+                full_marks: q.full_marks,
             };
 
             if (q.question_type === "MCQ") {
@@ -152,15 +176,91 @@ export const bulkCreateStudentAnswers = async (req, res) => {
     const t = await sequelize.transaction();
 
     try {
-        await StudentQuestionAnswer.bulkCreate(answers, {
-            updateOnDuplicate: ["stud_answer", "updatedAt_ts"],
-            transaction: t,
-        });
+        const masterKeyHex = process.env.AES_MASTER_KEY;
+        if (!masterKeyHex) {
+            throw new Error("AES_MASTER_KEY not found in .env");
+        }
+        const masterKey = Buffer.from(masterKeyHex, "hex");
+
+        const results = [];
+        const studentExamPairs = new Set(); // To track unique (student, exam) pairs
+
+        for (const ans of answers) {
+            const { stud_user_fk_id, exam_question_fk_id, stud_answer, exam_fk_id, subject_fk_id } = ans;
+            studentExamPairs.add(`${stud_user_fk_id}-${exam_fk_id}`);
+
+            // 1. Generate a unique random key for THIS specific student answer
+            const randomAnswerKey = crypto.randomBytes(32);
+
+            // 2. Encrypt the student's answer using the random key
+            const answerString = typeof stud_answer === "string" ? stud_answer : JSON.stringify(stud_answer);
+            const encryptedAnswer = encrypt(answerString, randomAnswerKey);
+
+            // 3. Encrypt the random key using the Master Key
+            const encryptedRandomKey = encrypt(randomAnswerKey.toString("hex"), masterKey);
+
+            // 4. Create/Update the student answer record
+            // We use findOne + create/update instead of bulkCreate to easily get the ID for the token
+            let [answerRecord, created] = await StudentQuestionAnswer.findOrCreate({
+                where: {
+                    stud_user_fk_id,
+                    exam_question_fk_id
+                },
+                defaults: {
+                    stud_answer: encryptedAnswer,
+                    exam_fk_id,
+                    subject_fk_id
+                },
+                transaction: t
+            });
+
+            if (!created) {
+                await answerRecord.update({
+                    stud_answer: encryptedAnswer,
+                    exam_fk_id,
+                    subject_fk_id
+                }, { transaction: t });
+            }
+
+            // 5. Create/Update the secondary token record for this answer
+            // Use findOne/upsert to handle updates if manual sync is called again
+            await ExamAnswerToken.upsert({
+                answer_fk_id: answerRecord.id,
+                aes_256_key: encryptedRandomKey
+            }, { transaction: t });
+
+            results.push(answerRecord);
+        }
+
+        // 6. Ensure ExamStudent table is populated for each student-exam pair
+        for (const pair of studentExamPairs) {
+            const [studentId, examId] = pair.split("-");
+            
+            // We use findOrCreate then update to ensure it's marked as SUBMITTED
+            const [examStudent, created] = await ExamStudent.findOrCreate({
+                where: {
+                    student_fk_id: studentId,
+                    exam_fk_id: examId
+                },
+                defaults: {
+                    status: "SUBMITTED",
+                    submitted_at: new Date()
+                },
+                transaction: t
+            });
+
+            if (!created) {
+                await examStudent.update({
+                    status: "SUBMITTED",
+                    submitted_at: new Date()
+                }, { transaction: t });
+            }
+        }
 
         await t.commit();
 
         res.status(200).json({
-            message: `Successfully synced ${answers.length} answers.`,
+            message: `Successfully synced ${results.length} answers with unique encryption keys.`,
         });
     } catch (err) {
         await t.rollback();

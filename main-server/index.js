@@ -106,7 +106,7 @@ const runApp = async () => {
     // await sequelize.sync({ alter: true });
 
     server.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server is running on http://localhost:${PORT}`);
+      console.log(`Server is running on http://192.168.1.100:${PORT}`);
     });
   } catch (err) {
     console.error("Unable to connect to the database:", err);

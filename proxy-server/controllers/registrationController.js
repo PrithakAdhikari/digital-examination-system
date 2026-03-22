@@ -24,7 +24,7 @@ export const saveProvisionKey = async (req, res) => {
             setting = await ProxySetting.create({
                 exam_center_id,
                 provision_key: encrypt(provision_key),
-                main_server_url: main_server_url || "http://localhost:8000",
+                main_server_url: main_server_url || "http://192.168.1.100:8000",
             });
         }
 
@@ -75,7 +75,8 @@ export const getRegistrationStatus = async (req, res) => {
         const is_registered = !!(setting && setting.secret_key);
         res.status(200).json({ 
             is_registered, 
-            selected_examination_id: setting?.selected_examination_id || null 
+            selected_examination_id: setting?.selected_examination_id || null,
+            selected_subject_id: setting?.selected_subject_id || null
         });
     } catch (err) {
         res.status(500).json({ error: "Error checking status: " + err.message });
