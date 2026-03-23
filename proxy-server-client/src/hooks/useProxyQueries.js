@@ -69,3 +69,10 @@ export function useUnsyncedCount() {
   });
 }
 
+export function useStudents() {
+  return useQuery({
+    queryKey: ["students"],
+    queryFn: proxyApi.getStudents,
+  });
+}
+

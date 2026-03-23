@@ -52,3 +52,7 @@ export function getUnsyncedCount() {
     return axiosInstance.get("/unsynced-count").then((res) => res.data);
 }
 
+export function getStudents() {
+    return axiosInstance.get("/students").then((res) => res.data);
+}
+

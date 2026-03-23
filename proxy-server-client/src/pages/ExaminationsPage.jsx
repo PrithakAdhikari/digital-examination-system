@@ -102,7 +102,7 @@ export default function ExaminationsPage() {
       
       {/* 🚀 ONGOING STATUS HEADER */}
       <div className="relative group">
-        <div className="absolute inset-x-0 -top-4 -bottom-4 bg-linear-to-r from-primary/10 via-accent/10 to-primary/10 blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 -z-10" />
+        <div className="absolute inset-x-0 -top-4 -bottom-4 bg-linear-to-r from-primary/10 via-accent/10 to-primary/10 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000 -z-10" />
         
         {ongoingExam ? (
           <div className="card bg-base-100/40 backdrop-blur-xl border border-primary/20 shadow-2xl rounded-[3rem] overflow-hidden">

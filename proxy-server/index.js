@@ -15,6 +15,7 @@ import ProxySetting from "./models/ProxySetting.js";
 import StudentAnswer from "./models/StudentAnswer.js";
 import { 
     getExaminations, 
+    getStudents,
     selectExamination, 
     initializeCronJobs, 
     getLocalQuestions,
@@ -73,6 +74,7 @@ app.use("/auth", authRouter);
 
 // Examination Routes
 app.get("/examinations", getExaminations);
+app.get("/students", getStudents);
 app.post("/select-examination", selectExamination);
 app.post("/remove-examination", removeExamination);
 app.get("/questions", getLocalQuestions);

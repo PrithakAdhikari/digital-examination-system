@@ -20,6 +20,19 @@ export const getExaminations = async (req, res) => {
 };
 
 /**
+ * Fetches all students in this center from the main server.
+ */
+export const getStudents = async (req, res) => {
+    try {
+        const response = await mainServerClient.get("/proxy/students");
+        res.status(200).json(response.data);
+    } catch (err) {
+        console.error("Error fetching students from main server:", err.message);
+        res.status(500).json({ error: "Failed to fetch students from main server: " + err.message });
+    }
+};
+
+/**
  * Selects an examination and starts a cron job to fetch questions.
  */
 export const selectExamination = async (req, res) => {

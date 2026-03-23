@@ -40,8 +40,12 @@ export default function ExaminationView({ onExit }) {
         const confirmSubmit = window.confirm(`You have answered ${answeredCount} of ${questions.length} questions. Are you sure you want to submit all and finish?`);
         if (!confirmSubmit) return;
 
-        const studentId = prompt("Enter Student ID (student_fk_id) for testing:", "1");
-        if (!studentId) return;
+        const storedStudent = JSON.parse(localStorage.getItem("assigned_student") || "{}");
+        const studentId = storedStudent.id;
+        if (!studentId) {
+            toast.error("Student not assigned! Please contact admin.");
+            return;
+        }
 
         setIsSubmitting(true);
         try {

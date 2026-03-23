@@ -1,7 +1,7 @@
 import express from "express";
 import { registerExamCenter } from "../controllers/proxyAuthController.js";
 import { verifyHmacSignature } from "../middlewares/hmacMiddleware.js";
-import { getExaminationsForProxy, getQuestionsForProxy, bulkCreateStudentAnswers } from "../controllers/proxyController.js";
+import { getExaminationsForProxy, getQuestionsForProxy, bulkCreateStudentAnswers, getStudentsInCenter } from "../controllers/proxyController.js";
 
 const router = express.Router();
 
@@ -18,6 +18,7 @@ router.get("/test", verifyHmacSignature, (req, res) => {
 });
 
 router.get("/examinations", verifyHmacSignature, getExaminationsForProxy);
+router.get("/students", verifyHmacSignature, getStudentsInCenter);
 router.get("/get-questions/:subjectId", verifyHmacSignature, getQuestionsForProxy);
 router.post("/bulk-create-answers", verifyHmacSignature, bulkCreateStudentAnswers);
 

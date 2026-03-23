@@ -11,6 +11,7 @@ import MonitorPage from "./pages/MonitorPage.jsx";
 import CodeTesterPage from "./pages/CodeTesterPage.jsx";
 import ClientsPage from "./pages/ClientsPage.jsx";
 import SyncQueuePage from "./pages/SyncQueuePage.jsx";
+import StudentsPage from "./pages/StudentsPage.jsx";
 import { Toaster } from "react-hot-toast";
 
 
@@ -51,6 +52,7 @@ function App() {
                 <Route path="code-tester" element={<CodeTesterPage />} />
                 <Route path="clients" element={<ClientsPage />} />
                 <Route path="sync-queue" element={<SyncQueuePage />} />
+                <Route path="students" element={<StudentsPage />} />
 
                 {/* Future protected routes can go here */}
               </Route>

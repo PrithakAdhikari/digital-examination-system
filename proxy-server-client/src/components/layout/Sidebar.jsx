@@ -6,7 +6,8 @@ import {
   Terminal, 
   Cpu, 
   Smartphone, 
-  Share2 
+  Share2,
+  Users
 } from "lucide-react";
 
 
@@ -55,16 +56,23 @@ const navItems = [
       </svg>
     )
   },
-  { 
-    to: "/clients", 
-    end: false, 
+  {
+    to: "/clients",
+    end: false,
     label: "Clients",
     note: "PC Monitoring",
     icon: <Smartphone className="h-5 w-5" />
   },
-  { 
-    to: "/sync-queue", 
-    end: false, 
+  {
+    to: "/students",
+    end: false,
+    label: "Students",
+    note: "Manage Students", // Added a default note
+    icon: <Users className="h-5 w-5" />
+  },
+  {
+    to: "/sync-queue",
+    end: false,
     label: "Sync Queue",
     note: "Local DB Status",
     badge: true,

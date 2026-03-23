@@ -6,6 +6,7 @@ import PaperQuestion from "../models/PaperQuestion.js";
 import ExamAnswerToken from "../models/ExamAnswerToken.js";
 import StudentQuestionAnswer from "../models/StudentQuestionAnswer.js";
 import ExamStudent from "../models/ExamStudent.js";
+import User from "../models/User.js";
 import sequelize from "../database.js";
 import { Sequelize } from "sequelize";
 
@@ -266,5 +267,26 @@ export const bulkCreateStudentAnswers = async (req, res) => {
         await t.rollback();
         console.error("Bulk sync error:", err.message);
         res.status(500).json({ error: "Error during bulk sync: " + err.message });
+    }
+};
+
+export const getStudentsInCenter = async (req, res) => {
+    try {
+        const centerId = req.examinationCenter.id;
+        const students = await User.findAll({
+            where: {
+                center_fk_id: centerId,
+                role: "STUDENT",
+                is_active: true
+            },
+            attributes: ['id', 'firstname_txt', 'lastname_txt', 'username', 'stud_exam_symbol_no', 'stud_exam_reg_no'],
+            order: [['firstname_txt', 'ASC']]
+        });
+        res.status(200).json({
+            message: "Students fetched successfully",
+            data: students
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching students: " + err.message });
     }
 };
