@@ -7,7 +7,7 @@ const mainServerClient = axios.create();
 
 mainServerClient.interceptors.request.use(async (config) => {
     try {
-        config.baseURL = 'http://localhost:8000/';
+        config.baseURL = process.env.MAIN_SERVER_URL || 'http://localhost:8000/';
 
         const setting = await ProxySetting.findOne();
         if (!setting || !setting.secret_key) {

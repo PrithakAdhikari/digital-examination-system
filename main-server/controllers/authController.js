@@ -9,6 +9,7 @@ import Token from "../models/Token.js";
 import cloudinary from "../cloudinaryConfig.js";
 import sequelize from "../database.js";
 import { Sequelize } from "sequelize";
+import OnboardingInstitution from "../models/OnboardingInstitution.js";
 
 const generateAccessToken = (user) => {
   return jwt.sign({ id: user.id }, process.env.SECRET_KEY, { expiresIn: "1d" });
@@ -250,5 +251,28 @@ export const refreshAccessToken = async (req, res) => {
     return res
       .status(500)
       .json({ error: "Error refreshing token: " + err.message });
+  }
+};
+
+export const submitInstitution = async (req, res) => {
+  const { full_name_txt, institution_email, institution_name, role } = req.body;
+
+  try {
+    const institution = await OnboardingInstitution.create({
+      full_name_txt,
+      institution_email,
+      institution_name,
+      role,
+    });
+
+    return res.status(201).json({
+      message: "Institution submitted successfully",
+      data: institution,
+    });
+  } catch (error) {
+    console.error("Error submitting institution: ", error.message);
+    return res.status(500).json({
+      error: "Error submitting institution: " + error.message,
+    });
   }
 };

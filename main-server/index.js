@@ -18,6 +18,7 @@ import StudentQuestionAnswer from "./models/StudentQuestionAnswer.js";
 import SubjectPaper from "./models/SubjectPaper.js";
 import SubjectStudentCheckerAssignment from "./models/SubjectStudentCheckerAssignment.js";
 import Token from "./models/Token.js";
+import OnboardingInstitution from "./models/OnboardingInstitution.js";
 
 import authRouter from "./routes/authRoutes.js";
 import adminRouter from "./routes/adminRoutes.js";
@@ -102,7 +103,6 @@ const runApp = async () => {
   try {
     await sequelize.authenticate();
     console.log("Database connected successfully.");
-    await sequelize.query(`ALTER TABLE public."PaperQuestion" ADD COLUMN IF NOT EXISTS correct_option TEXT`);
     // await sequelize.sync({ alter: true });
 
     server.listen(PORT, "0.0.0.0", () => {

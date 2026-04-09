@@ -3,7 +3,8 @@ import {
   loginUser,
   registerUser,
   refreshAccessToken,
-  profile
+  profile,
+  submitInstitution
 } from "../controllers/authController.js";
 import multer from "multer";
 import { validateRequest } from "../middlewares/validate.js";
@@ -33,5 +34,7 @@ authRouter.post(
 );
 
 authRouter.get("/profile/:id", userValidationRules.profile, profile);
+
+authRouter.post("/submitInstitution", submitInstitution);
 
 export default authRouter;
