@@ -2,7 +2,7 @@ import { useEffect, useCallback, useState } from "react";
 import axios from "axios";
 
 // Using window.location.hostname for easier local testing or the configured PROXY_URL
-const PROXY_URL = "http://192.168.1.100:8001"; 
+const PROXY_URL = "http://localhost:8001"; 
 
 export const useQuestionFetcher = (enabled) => {
     const [questions, setQuestions] = useState([]);

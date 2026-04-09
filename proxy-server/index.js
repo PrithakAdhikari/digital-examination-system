@@ -156,13 +156,13 @@ const runApp = async () => {
     await initializeCronJobs();
 
     // Initialize Docker Pool
-    await DockerPool.initialize();
+    // await DockerPool.initialize();
 
     // Start heartbeat monitor for clients (every 10s)
     setInterval(monitorHeartbeats, 10000);
 
     server.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server is running on http://192.168.1.100:${PORT}`);
+      console.log(`Server is running on http://localhost:${PORT}`);
     });
   } catch (err) {
     console.error("Unable to connect to the database:", err);

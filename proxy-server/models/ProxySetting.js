@@ -25,7 +25,7 @@ const ProxySetting = sequelizeSqlite.define(
     main_server_url: {
         type: DataTypes.STRING,
         allowNull: true,
-        defaultValue: "http://192.168.1.100:8000"
+        defaultValue: "http://localhost:8000"
     },
     selected_examination_id: {
         type: DataTypes.BIGINT,

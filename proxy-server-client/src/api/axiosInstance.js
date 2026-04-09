@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const TOKEN_KEY = "proxy_token";
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://192.168.1.100:8001";
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
 
 export function getStoredToken() {
   return localStorage.getItem(TOKEN_KEY);

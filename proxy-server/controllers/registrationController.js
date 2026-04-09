@@ -24,7 +24,7 @@ export const saveProvisionKey = async (req, res) => {
             setting = await ProxySetting.create({
                 exam_center_id,
                 provision_key: encrypt(provision_key),
-                main_server_url: main_server_url || "http://192.168.1.100:8000",
+                main_server_url: main_server_url || "http://localhost:8000",
             });
         }
 

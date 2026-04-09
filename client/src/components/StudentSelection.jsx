@@ -20,7 +20,7 @@ import {
   Trash2
 } from "lucide-react";
 
-const PROXY_URL = "http://192.168.1.100:8001";
+const PROXY_URL = "http://localhost:8001";
 
 export default function StudentSelection({ 
     authToken, 

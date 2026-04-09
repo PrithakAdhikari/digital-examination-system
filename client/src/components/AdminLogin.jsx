@@ -3,7 +3,7 @@ import axios from "axios";
 import { Lock, Mail, RefreshCcw, ShieldCheck } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-const PROXY_URL = "http://192.168.1.100:8001";
+const PROXY_URL = "http://localhost:8001";
 
 export default function AdminLogin({ onLoginSuccess }) {
   const [email, setEmail] = useState("");

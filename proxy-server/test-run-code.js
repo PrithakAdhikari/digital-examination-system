@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://192.168.1.100:8001/run-code';
+const API_URL = 'http://localhost:8001/run-code';
 
 async function testLanguage(language, code) {
     console.log(`Testing ${language}...`);

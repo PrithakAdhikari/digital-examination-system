@@ -6,7 +6,7 @@ export default function RegistrationPage() {
   const [formData, setFormData] = useState({
     exam_center_id: "",
     provision_key: "",
-    main_server_url: "http://192.168.1.100:8000",
+    main_server_url: "http://localhost:8000",
   });
   const [step, setStep] = useState(1); // 1: Input, 2: Registering, 3: Success
   const [error, setError] = useState(null);

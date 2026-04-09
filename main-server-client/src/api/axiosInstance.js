@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const TOKEN_KEY = "des_token";
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://192.168.1.100:8000";
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export function getStoredToken() {
   return localStorage.getItem(TOKEN_KEY);

@@ -4,7 +4,7 @@ import { toast } from "react-hot-toast";
 import { ChevronLeft, ChevronRight, Send, User, Award, HelpCircle, RefreshCcw, Terminal } from "lucide-react";
 import CodeCompiler from "./CodeCompiler.jsx";
 
-const PROXY_URL = "http://192.168.1.100:8001";
+const PROXY_URL = "http://localhost:8001";
 
 export default function ExaminationView({ onExit }) {
     const [questions, setQuestions] = useState([]);
